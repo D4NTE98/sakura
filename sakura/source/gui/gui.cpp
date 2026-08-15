@@ -39,33 +39,47 @@ void InistalizeImgui(HDC hdc)
 			ImGui_ImplOpenGL2_Init();
 
 		ImGui::StyleColorsDark();
-		ImGui::GetStyle().AntiAliasedFill = !bOldOpenGL ? true : false;
-		ImGui::GetStyle().AntiAliasedLines = !bOldOpenGL ? true : false;
-		ImGui::GetStyle().FrameRounding = 4.0f;
-		ImGui::GetStyle().WindowRounding = 6.0f;
-		ImGui::GetStyle().ChildRounding = 6.0f;
-		ImGui::GetStyle().PopupRounding = 6.0f;
-		ImGui::GetStyle().ScrollbarRounding = 0.0f;
-		ImGui::GetStyle().GrabRounding = 0.0f;
-		ImGui::GetStyle().FramePadding = ImVec2(4, 3);
-		ImGui::GetStyle().WindowPadding = ImVec2(5, 5);
-		ImGui::GetStyle().WindowBorderSize = 0.0f;
-		ImGui::GetStyle().FrameBorderSize = 0.0f;
-		ImGui::GetStyle().PopupBorderSize = 1.0f; 
-		ImGui::GetStyle().WindowMinSize = ImVec2(10, 10);
-		ImGui::GetStyle().ItemSpacing = ImVec2(7, 4);
-		ImGui::GetStyle().ItemInnerSpacing = ImVec2(6, 6);
-		ImGui::GetStyle().ScrollbarSize = 8.0f;
+
+		ImGuiStyle& style = ImGui::GetStyle();
+		style.AntiAliasedFill = !bOldOpenGL;
+		style.AntiAliasedLines = !bOldOpenGL;
+		style.WindowRounding = 12.0f;
+		style.ChildRounding = 10.0f;
+		style.FrameRounding = 7.0f;
+		style.PopupRounding = 10.0f;
+		style.ScrollbarRounding = 8.0f;
+		style.GrabRounding = 6.0f;
+		style.WindowPadding = ImVec2(10.0f, 10.0f);
+		style.FramePadding = ImVec2(8.0f, 5.0f);
+		style.ItemSpacing = ImVec2(8.0f, 7.0f);
+		style.ItemInnerSpacing = ImVec2(8.0f, 6.0f);
+		style.ScrollbarSize = 9.0f;
+		style.WindowBorderSize = 0.0f;
+		style.FrameBorderSize = 0.0f;
+		style.PopupBorderSize = 1.0f;
+		style.WindowMinSize = ImVec2(10.0f, 10.0f);
 		ImGui::GetIO().IniFilename = NULL;
 		ImGui::GetIO().LogFilename = NULL;
 
-        ImVec4* colors = ImGui::GetStyle().Colors;
-        colors[ImGuiCol_ChildBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.00);
-        colors[ImGuiCol_FrameBg] = ImVec4(0.31f, 0.31f, 0.31f, 0.63f);
-        colors[ImGuiCol_Header] = ImVec4(0.33f, 0.33f, 0.33f, 0.39f);
-        colors[ImGuiCol_HeaderHovered] = ImVec4(0.97f, 0.19f, 0.98f, 0.80f);
-        colors[ImGuiCol_HeaderActive] = ImVec4(0.97f, 0.19f, 0.98f, 1.00f);
-        colors[ImGuiCol_PopupBg] = ImVec4(0.11f, 0.12f, 0.14f, 1.00f);
+		ImVec4* colors = style.Colors;
+		colors[ImGuiCol_Text] = ImVec4(0.94f, 0.94f, 0.96f, 1.00f);
+		colors[ImGuiCol_TextDisabled] = ImVec4(0.49f, 0.50f, 0.56f, 1.00f);
+		colors[ImGuiCol_WindowBg] = ImVec4(0.045f, 0.047f, 0.058f, 1.00f);
+		colors[ImGuiCol_ChildBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+		colors[ImGuiCol_PopupBg] = ImVec4(0.060f, 0.062f, 0.074f, 0.99f);
+		colors[ImGuiCol_Border] = ImVec4(0.18f, 0.18f, 0.22f, 0.65f);
+		colors[ImGuiCol_FrameBg] = ImVec4(0.105f, 0.108f, 0.128f, 1.00f);
+		colors[ImGuiCol_FrameBgHovered] = ImVec4(0.145f, 0.148f, 0.175f, 1.00f);
+		colors[ImGuiCol_FrameBgActive] = ImVec4(0.175f, 0.178f, 0.205f, 1.00f);
+		colors[ImGuiCol_Header] = ImVec4(0.16f, 0.16f, 0.19f, 0.85f);
+		colors[ImGuiCol_HeaderHovered] = ImVec4(0.82f, 0.18f, 0.47f, 0.78f);
+		colors[ImGuiCol_HeaderActive] = ImVec4(0.88f, 0.20f, 0.50f, 1.00f);
+		colors[ImGuiCol_Button] = ImVec4(0.12f, 0.12f, 0.15f, 1.00f);
+		colors[ImGuiCol_ButtonHovered] = ImVec4(0.82f, 0.18f, 0.47f, 0.88f);
+		colors[ImGuiCol_ButtonActive] = ImVec4(0.72f, 0.14f, 0.39f, 1.00f);
+		colors[ImGuiCol_CheckMark] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+		colors[ImGuiCol_SliderGrab] = ImVec4(0.82f, 0.18f, 0.47f, 0.85f);
+		colors[ImGuiCol_SliderGrabActive] = ImVec4(0.94f, 0.25f, 0.57f, 1.00f);
 
 		ImFontConfig config;
 		config.MergeMode = true;
@@ -204,7 +218,7 @@ void HookImGui(HDC hdc)
 			if (!script.HasCallback(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_RENDERING_WINDOW))
 				continue;
 
-			auto& callbacks = script.GetCallbacks(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_RENDERING_WINDOW);
+			auto callbacks = script.GetCallbacks(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_RENDERING_WINDOW);
 			for (const auto& callback : callbacks)
 			{
 				try

@@ -5,6 +5,9 @@ bool	Sakura::Triggerbot::TriggerKeyStatus;
 
 void Sakura::Triggerbot::SelectTarget(usercmd_s* cmd, playeraim_t Aim, float& m_flBestFOV, DWORD delay, Vector vecSpreadDir)
 {
+	if (Aim.backtrack)
+		return;
+
 	Vector vEye = pmove->origin + pmove->view_ofs;
 
 	bool bHitboxPointsVisible[8];
@@ -169,6 +172,9 @@ void Sakura::Triggerbot::Trigger(usercmd_s* cmd)
 
 void Sakura::Triggerbot::DrawTarget(playeraim_t Aim)
 {
+	if (Aim.backtrack)
+		return;
+
 	Vector vEye = pmove->origin + pmove->view_ofs;
 
 	bool bHitboxPointsVisible[8];

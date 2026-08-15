@@ -4,6 +4,7 @@ int		Sakura::Aimbot::Rage::iTargetRage;
 int		Sakura::Aimbot::Rage::iHitboxRage;
 bool	Sakura::Aimbot::Rage::RageKeyStatus;
 Vector	Sakura::Aimbot::Rage::vAimOriginRage;
+static bool g_RageBacktrackTarget = false;
 
 void Sakura::Aimbot::Rage::Target(playeraim_t Aim, float& m_flBestDist, float& m_flBestFOV, int hitbox)
 {
@@ -16,6 +17,7 @@ void Sakura::Aimbot::Rage::Target(playeraim_t Aim, float& m_flBestDist, float& m
 			iTargetRage = Aim.index;
 			vAimOriginRage = Aim.PlayerAimHitbox[hitbox].Hitbox;
 			iHitboxRage = hitbox;
+			g_RageBacktrackTarget = Aim.backtrack;
 		}
 	}
 	else
@@ -28,6 +30,7 @@ void Sakura::Aimbot::Rage::Target(playeraim_t Aim, float& m_flBestDist, float& m
 				iTargetRage = Aim.index;
 				vAimOriginRage = Aim.PlayerAimHitbox[hitbox].Hitbox;
 				iHitboxRage = hitbox;
+				g_RageBacktrackTarget = Aim.backtrack;
 			}
 		}
 		if (cvar.rage_target_selection == 1)
@@ -39,6 +42,7 @@ void Sakura::Aimbot::Rage::Target(playeraim_t Aim, float& m_flBestDist, float& m
 				iTargetRage = Aim.index;
 				vAimOriginRage = Aim.PlayerAimHitbox[hitbox].Hitbox;
 				iHitboxRage = hitbox;
+				g_RageBacktrackTarget = Aim.backtrack;
 			}
 		}
 		if (cvar.rage_target_selection == 2)
@@ -53,6 +57,7 @@ void Sakura::Aimbot::Rage::Target(playeraim_t Aim, float& m_flBestDist, float& m
 					iTargetRage = Aim.index;
 					vAimOriginRage = Aim.PlayerAimHitbox[hitbox].Hitbox;
 					iHitboxRage = hitbox;
+					g_RageBacktrackTarget = Aim.backtrack;
 				}
 			}
 		}
@@ -61,48 +66,51 @@ void Sakura::Aimbot::Rage::Target(playeraim_t Aim, float& m_flBestDist, float& m
 
 void Sakura::Aimbot::Rage::SelectHitbox(playeraim_t Aim, float& m_flBestDist, float& m_flBestFOV)
 {
-	pmtrace_t tr;
+	if (!pmove || !g_Engine.pEventAPI)
+		return;
 
+	const int hitbox = static_cast<int>(cvar.rage[g_Local.weapon.m_iWeaponID].rage_hitbox);
+	if (hitbox < 0 || hitbox >= static_cast<int>(Aim.PlayerAimHitbox.size()))
+		return;
+
+	pmtrace_t tr = {};
 	g_Engine.pEventAPI->EV_SetTraceHull(2);
 
 	Vector vEye = pmove->origin + pmove->view_ofs;
+	Vector target = Aim.PlayerAimHitbox[hitbox].Hitbox;
 
-	if (cvar.bypass_trace_rage)
-		g_Engine.pEventAPI->EV_PlayerTrace(vEye, Aim.PlayerAimHitbox[cvar.rage[g_Local.weapon.m_iWeaponID].rage_hitbox].Hitbox, PM_WORLD_ONLY, -1, &tr);
+	if (Aim.backtrack || cvar.bypass_trace_rage)
+		g_Engine.pEventAPI->EV_PlayerTrace(vEye, target, PM_WORLD_ONLY, -1, &tr);
 	else
-		g_Engine.pEventAPI->EV_PlayerTrace(vEye, Aim.PlayerAimHitbox[cvar.rage[g_Local.weapon.m_iWeaponID].rage_hitbox].Hitbox, PM_GLASS_IGNORE, -1, &tr);
+		g_Engine.pEventAPI->EV_PlayerTrace(vEye, target, PM_GLASS_IGNORE, -1, &tr);
 
-	int detect = g_Engine.pEventAPI->EV_IndexFromTrace(&tr);
+	const int detect = g_Engine.pEventAPI->EV_IndexFromTrace(&tr);
+	const bool visible = Aim.backtrack ? tr.fraction >= 0.999f : ((cvar.bypass_trace_rage && tr.fraction >= 0.999f && !detect) || (!cvar.bypass_trace_rage && detect == Aim.index));
 
-	if ((cvar.bypass_trace_rage && tr.fraction == 1 && !detect) || (!cvar.bypass_trace_rage && detect == Aim.index))
+	if (visible)
 	{
-		if (Aim.PlayerAimHitbox[cvar.rage[g_Local.weapon.m_iWeaponID].rage_hitbox].HitboxFOV <= cvar.rage_fov)
-			Target(Aim, m_flBestDist, m_flBestFOV, cvar.rage[g_Local.weapon.m_iWeaponID].rage_hitbox);
+		if (Aim.PlayerAimHitbox[hitbox].HitboxFOV <= cvar.rage_fov)
+			Target(Aim, m_flBestDist, m_flBestFOV, hitbox);
+		return;
 	}
-	else
-	{
-		int iOriginalPenetration = CurPenetration();
 
-		if (iOriginalPenetration && cvar.rage_wall)
-		{
-			int iDamage = CurDamage();
-			int iBulletType = CurBulletType();
-			float flDistance = CurDistance();
-			float flRangeModifier = CurWallPierce();
+	const int iOriginalPenetration = CurPenetration();
+	if (!iOriginalPenetration || !cvar.rage_wall)
+		return;
 
-			int iCurrentDamage = Sakura::Aimbot::FireBullets(vEye, Aim.PlayerAimHitbox[cvar.rage[g_Local.weapon.m_iWeaponID].rage_hitbox].Hitbox, flDistance, iOriginalPenetration, iBulletType, iDamage, flRangeModifier);
+	const int iDamage = CurDamage();
+	const int iBulletType = CurBulletType();
+	const float flDistance = CurDistance();
+	const float flRangeModifier = CurWallPierce();
+	const int iCurrentDamage = Sakura::Aimbot::FireBullets(vEye, target, flDistance, iOriginalPenetration, iBulletType, iDamage, flRangeModifier);
 
-			if (iCurrentDamage > 0)
-			{
-				if (Aim.PlayerAimHitbox[cvar.rage[g_Local.weapon.m_iWeaponID].rage_hitbox].HitboxFOV <= cvar.rage_fov)
-					Target(Aim, m_flBestDist, m_flBestFOV, cvar.rage[g_Local.weapon.m_iWeaponID].rage_hitbox);
-			}
-		}
-	}
+	if (iCurrentDamage > 0 && Aim.PlayerAimHitbox[hitbox].HitboxFOV <= cvar.rage_fov)
+		Target(Aim, m_flBestDist, m_flBestFOV, hitbox);
 }
 
 void Sakura::Aimbot::Rage::Aim(usercmd_s* cmd)
 {
+	g_RageBacktrackTarget = false;
 	if (IsCurWeaponNonAttack())
 		return;
 
@@ -269,7 +277,7 @@ void Sakura::Aimbot::Rage::Draw()
 
 	for (playeraim_t Aim : PlayerAim)
 	{
-		if (Aim.index != iTargetRage)
+		if (Aim.index != iTargetRage || Aim.backtrack != g_RageBacktrackTarget)
 			continue;
 
 		float CalcAnglesMin[2], CalcAnglesMax[2];

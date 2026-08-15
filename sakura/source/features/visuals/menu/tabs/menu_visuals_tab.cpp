@@ -55,6 +55,7 @@ void Sakura::Menu::Tabs::Visuals::PlayerEsp()
 	{
 		Sakura::Menu::Widgets::Checkbox(/*Box*/XorStr<0x00, 4, 0x42D15C07>("\x42\x6E\x7A" + 0x42D15C07).s, &cvar.visual_box);
 		Sakura::Menu::Widgets::Checkbox(/*Health*/XorStr<0xAB, 7, 0x04E5670A>("\xE3\xC9\xCC\xC2\xDB\xD8" + 0x04E5670A).s, &cvar.visual_health);
+		Sakura::Menu::Widgets::Checkbox("Damage dealt", &cvar.visual_damage);
 		Sakura::Menu::Widgets::Checkbox(/*Name*/XorStr<0x12, 5, 0xAE49B981>("\x5C\x72\x79\x70" + 0xAE49B981).s, &cvar.visual_name);
 		Sakura::Menu::Widgets::Checkbox(/*Reload*/XorStr<0x3B, 7, 0xF5AB74A7>("\x69\x59\x51\x51\x5E\x24" + 0xF5AB74A7).s, &cvar.visual_reload_bar);
 		Sakura::Menu::Widgets::Checkbox(/*Vip*/XorStr<0x8E, 4, 0x49B38822>("\xD8\xE6\xE0" + 0x49B38822).s, &cvar.visual_vip);
@@ -91,6 +92,7 @@ void Sakura::Menu::Tabs::Visuals::PlayerChams()
 	ImGui::BeginChild(/*##vpc1*/XorStr<0x9B, 7, 0x3BCF8DEE>("\xB8\xBF\xEB\xEE\xFC\x91" + 0x3BCF8DEE).s, ImVec2(250, -1));
 	{
 		Sakura::Menu::Widgets::Checkbox(/*Chams Wall*/XorStr<0x01, 11, 0x323D836D>("\x42\x6A\x62\x69\x76\x26\x50\x69\x65\x66" + 0x323D836D).s, &cvar.chams_player_wall);
+		Sakura::Menu::Widgets::Checkbox("Edge Chams", &cvar.visual_edge_chams);
 		Sakura::Menu::Widgets::Checkbox(/*Chams Wireframe*/XorStr<0xDD, 16, 0x324D0292>("\x9E\xB6\xBE\x8D\x92\xC2\xB4\x8D\x97\x83\x81\x9A\x88\x87\x8E" + 0x324D0292).s, &cvar.chams_player_wireframe);
 	}
 	ImGui::EndChild();
@@ -98,6 +100,9 @@ void Sakura::Menu::Tabs::Visuals::PlayerChams()
 	ImGui::BeginChild(/*##vpc2*/XorStr<0x5E, 7, 0x7B5BC012>("\x7D\x7C\x16\x11\x01\x51" + 0x7B5BC012).s, ImVec2(250, -1));
 	{
 		ImGui::PushItemWidth(itemWidth);
+
+		if (cvar.visual_edge_chams)
+			Sakura::Menu::Widgets::SliderFloat("Edge thickness", &cvar.visual_edge_chams_thickness, 2.f, 32.f, "%.0f");
 		
 		if (cvar.chams_player_wireframe_mode)
 			Sakura::Menu::Widgets::SliderFloat(/*Wireframe point size*/XorStr<0xCE, 21, 0x1F241978>("\x99\xA6\xA2\xB4\xB4\xA1\xB5\xB8\xB3\xF7\xA8\xB6\xB3\xB5\xA8\xFD\xAD\xB6\x9A\x84" + 0x1F241978).s, &cvar.chams_player_wireframe_point_size, 1.f, 5.f, "%.1f");

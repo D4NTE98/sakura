@@ -47,6 +47,9 @@ namespace Sakura
 		{
 			void DrawBox(const float x, const float y, const float w, const float h, const ImRGBA color);
 			void DrawHealth(const int index, const float x, const float y, const float h);
+			void DrawDamage(const int index, const float x, const float y, const float w, const float h);
+			void RegisterLocalShot();
+			void RegisterDamage(const int index, const int damage);
 			void DrawVip(const int index, const float x, const float y);
 			void DrawReload(const int index, const int sequence, const float x, const float y);
 			void DrawName(const int index, const float x, const float y);

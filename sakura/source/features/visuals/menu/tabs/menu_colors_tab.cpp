@@ -128,11 +128,11 @@ void Sakura::Menu::Tabs::Colors::PlayerGlow()
 	{
 		Sakura::Menu::Widgets::Checkbox(/*##gttrc*/XorStr<0xD0, 8, 0x31AD4663>("\xF3\xF2\xB5\xA7\xA0\xA7\xB5" + 0x31AD4663).s, &cvar.rainbow_glow_player_tt);
 		ImGui::SameLine();
-		Sakura::Menu::Widgets::ColorEdit(/*Glow TT*/XorStr<0xE9, 8, 0xF7E88370>("\xAE\x86\x84\x9B\xCD\xBA\xBB" + 0xF7E88370).s, (float*)cvar.visual_player_glow_color_tt, pickerFlags);
+		Sakura::Menu::Widgets::ColorEdit("Glow / Edge TT", (float*)cvar.visual_player_glow_color_tt, pickerFlags);
 
 		Sakura::Menu::Widgets::Checkbox(/*##gctrc*/XorStr<0xD7, 8, 0x8410B77C>("\xF4\xFB\xBE\xB9\xAF\xAE\xBE" + 0x8410B77C).s, &cvar.rainbow_glow_player_ct);
 		ImGui::SameLine();
-		Sakura::Menu::Widgets::ColorEdit(/*Glow CT*/XorStr<0x91, 8, 0xC2FF6E86>("\xD6\xFE\xFC\xE3\xB5\xD5\xC3" + 0xC2FF6E86).s, (float*)cvar.visual_player_glow_color_ct, pickerFlags);
+		Sakura::Menu::Widgets::ColorEdit("Glow / Edge CT", (float*)cvar.visual_player_glow_color_ct, pickerFlags);
 	}
 	ImGui::EndChild();
 	ImGui::SameLine();

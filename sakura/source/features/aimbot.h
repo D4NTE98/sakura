@@ -29,6 +29,7 @@ typedef struct
 {
 	int sequence;
 	int index;
+	bool backtrack;
 	char modelname[MAX_MODEL_NAME];
 	Vector origin;
 	std::deque<playeraimhitbox_t> PlayerAimHitbox;

@@ -1,4 +1,4 @@
-#include "../../../client.h"
+﻿#include "../../../client.h"
 
 int Sakura::Menu::currentAlphaFade;
 int Sakura::Menu::itemWidth = 245;
@@ -491,6 +491,34 @@ void DrawCategoryButtons()
 		if (Sakura::Menu::Widgets::SubTab(/*Menu*/XorStr<0x28, 5, 0x065EA3AD>("\x65\x4C\x44\x5E" + 0x065EA3AD).s, ImVec2(150, 25), colorstab == 5 ? true : false))
 			colorstab = 5;
 		break;
+	case 5:
+	{
+		int visibleScriptIndex = 0;
+		bool hasMenuScripts = false;
+
+		for (size_t i = 0; i < Sakura::Lua::scripts.size(); ++i)
+		{
+			auto& script = Sakura::Lua::scripts[i];
+
+			if (!script.HasCallback(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_RENDERING_MENU))
+				continue;
+
+			hasMenuScripts = true;
+
+			if (Sakura::Menu::Widgets::SubTab(script.GetName().c_str(), ImVec2(150, 30), selectedScriptIndex == visibleScriptIndex))
+				selectedScriptIndex = visibleScriptIndex;
+
+			ImGui::Spacing();
+			visibleScriptIndex++;
+		}
+
+		if (!hasMenuScripts)
+		{
+			ImGui::TextDisabled("No Lua menu scripts");
+			ImGui::TextDisabled("Place .lua files in scripts/");
+		}
+	}
+		break;
 	}
 }
 
@@ -510,6 +538,9 @@ void DrawButtons()
 	ImGui::SameLine();
 	if (Sakura::Menu::Widgets::Tab(/*f*/XorStr<0x4E, 2, 0x8DC459AD>("\x28" + 0x8DC459AD).s, /*Colors*/XorStr<0x26, 7, 0xB6BCB496>("\x65\x48\x44\x46\x58\x58" + 0xB6BCB496).s, ImVec2(75, 50), tab == 4 ? true : false))
 		tab = 4;
+	ImGui::SameLine();
+	if (Sakura::Menu::Widgets::Tab("e", "Lua", ImVec2(75, 50), tab == 5))
+		tab = 5;
 }
 
 void DrawTab()
@@ -756,6 +787,66 @@ void DrawTab()
 			break;
 		}
 		break;
+	case 5:
+	{
+		ImGui::TextDisabled("%d Lua script%s loaded", Sakura::Lua::ScriptsCount, Sakura::Lua::ScriptsCount == 1 ? "" : "s");
+		ImGui::SameLine();
+
+		if (Sakura::Menu::Widgets::Button("Reload Lua", ImVec2(105.0f, 28.0f)))
+		{
+			Sakura::Lua::Reload();
+			selectedScriptIndex = 0;
+		}
+
+		ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Spacing();
+
+		std::vector<size_t> menuScripts;
+
+		for (size_t i = 0; i < Sakura::Lua::scripts.size(); ++i)
+		{
+			if (Sakura::Lua::scripts[i].HasCallback(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_RENDERING_MENU))
+				menuScripts.push_back(i);
+		}
+
+		if (menuScripts.empty())
+		{
+			ImGui::TextDisabled("No Lua UI callbacks registered.");
+			ImGui::Spacing();
+			ImGui::TextWrapped("Load a script that registers an On Menu Render callback. Scripts are loaded from the scripts folder next to sakura.dll.");
+			break;
+		}
+
+		if (selectedScriptIndex < 0)
+			selectedScriptIndex = 0;
+
+		if (selectedScriptIndex >= static_cast<int>(menuScripts.size()))
+			selectedScriptIndex = static_cast<int>(menuScripts.size()) - 1;
+
+		const size_t scriptIndex = menuScripts[selectedScriptIndex];
+		auto& selectedScript = Sakura::Lua::scripts[scriptIndex];
+		auto callbacks = selectedScript.GetCallbacks(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_RENDERING_MENU);
+
+		Sakura::Lua::currentScriptIndex = static_cast<int>(scriptIndex);
+
+		for (const auto& callback : callbacks)
+		{
+			try
+			{
+				callback();
+			}
+			catch (const luabridge::LuaException& error)
+			{
+				Sakura::Lua::Error("Error in Lua menu script %s: %s", selectedScript.GetName().c_str(), error.what());
+				selectedScript.RemoveAllCallbacks();
+				break;
+			}
+		}
+
+		Sakura::Lua::currentScriptIndex = -1;
+	}
+		break;
 	}
 }
 
@@ -908,147 +999,80 @@ void DrawMenuWindow()
 	ImGui::End();
 	ImGui::PopStyleVar(2);
 	
-	if (Sakura::Lua::scripts.size() > 0)
-	{
-		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
-		ImGui::PushStyleColor(ImGuiCol_Header, (ImVec4)Sakura::Menu::GetMenuColor(0.39f));
-		ImGui::PushStyleColor(ImGuiCol_HeaderHovered, (ImVec4)Sakura::Menu::GetMenuColor(0.80f));
-		ImGui::PushStyleColor(ImGuiCol_HeaderActive, (ImVec4)Sakura::Menu::GetMenuColor(1.00f));
-		ImGui::PushStyleColor(ImGuiCol_TitleBg, (ImVec4)Sakura::Menu::GetMenuColor(0.79f));
-		ImGui::PushStyleColor(ImGuiCol_TitleBgCollapsed, (ImVec4)Sakura::Menu::GetMenuColor(0.30f));
-		ImGui::PushStyleColor(ImGuiCol_TitleBgActive, (ImVec4)Sakura::Menu::GetMenuColor(1.00f));
-		ImGui::PushStyleColor(ImGuiCol_CheckMark, (ImVec4)Sakura::Menu::GetMenuColor(1.00f));
-		ImGui::PushStyleColor(ImGuiCol_SliderGrab, (ImVec4)Sakura::Menu::GetMenuColor(0.6f));
-		ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, (ImVec4)Sakura::Menu::GetMenuColor(1.00f));
-		ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)Sakura::Menu::GetMenuColor(0.39f));
-		ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, (ImVec4)Sakura::Menu::GetMenuColor(0.5f));
-		ImGui::PushStyleColor(ImGuiCol_FrameBgActive, (ImVec4)Sakura::Menu::GetMenuColor(0.8f));
-		ImGui::SetNextWindowPos(ImVec2(40, 20), ImGuiCond_Once);
-		ImGui::SetNextWindowCollapsed(true, ImGuiCond_Once);
-		ImGui::Begin(/*Sakura - Lua Scripts*/XorStr<0xBB, 21, 0x73438C7B>("\xE8\xDD\xD6\xCB\xCD\xA1\xE1\xEF\xE3\x88\xB0\xA7\xE7\x9B\xAA\xB8\xA2\xBC\xB9\xBD" + 0x73438C7B).s, nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-		
-		const char** items = new const char* [Sakura::Lua::scripts.size()];
-		for (size_t i = 0; i < Sakura::Lua::scripts.size(); ++i)
-		{
-			auto& script = Sakura::Lua::scripts[i];
 
-			if (!script.HasCallback(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_RENDERING_MENU))
-				continue;
+	const char* footerLeftText = "Refreshed by D4NTE";
+	const char* versionText = "v2.0.2";
+	const ImVec2 footerLeftCalculated = ImGui::CalcTextSize(footerLeftText);
+	const ImVec2 versionCalculated = ImGui::CalcTextSize(versionText);
+	const auto flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar;
+	const float menuWidth = 760.0f;
+	const float menuHeight = 520.0f;
+	const float headerHeight = 62.0f;
+	const float footerHeight = 28.0f;
 
-			char* copy = new char[script.GetName().size() + 1];
-
-			std::strcpy(copy, script.GetName().c_str());
-
-			items[i] = copy;
-		}
-		
-		ImGui::BeginChild(/*##scchoose*/XorStr<0x13, 11, 0x5FFD6DC6>("\x30\x37\x66\x75\x74\x70\x76\x75\x68\x79" + 0x5FFD6DC6).s, ImVec2(145, 250), false, ImGuiWindowFlags_AlwaysAutoResize);
-		ImGui::ListBox(/*##sclist*/XorStr<0xA7, 9, 0x420FACF5>("\x84\x8B\xDA\xC9\xC7\xC5\xDE\xDA" + 0x420FACF5).s, &selectedScriptIndex, items, Sakura::Lua::scripts.size(), -1);
-		ImGui::EndChild();
-		ImGui::SameLine();
-		ImGui::BeginChild(/*##sccmenu*/XorStr<0xC1, 10, 0x8A08E65C>("\xE2\xE1\xB0\xA7\xA6\xAB\xA2\xA6\xBC" + 0x8A08E65C).s, ImVec2(400, 250), true, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_HorizontalScrollbar);
-		// Render the selected script
-		auto& selectedScript = Sakura::Lua::scripts[selectedScriptIndex];
-		auto& callbacks = selectedScript.GetCallbacks(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_RENDERING_MENU);
-		for (const auto& callback : callbacks)
-		{
-			try
-			{
-				callback();
-			}
-			catch (luabridge::LuaException const& error)
-			{
-				if (selectedScript.GetState())
-				{
-					Sakura::Lua::Error(/*Error has occured in the lua "On Menu Render" script: %s*/XorStr<0x51, 57, 0xA94C8E45>("\x14\x20\x21\x3B\x27\x76\x3F\x39\x2A\x7A\x34\x3F\x3E\x2B\x2D\x05\x05\x42\x0A\x0A\x45\x12\x0F\x0D\x49\x06\x1E\x0D\x4D\x4C\x20\x1E\x51\x3F\x16\x1A\x00\x56\x25\x1D\x17\x1E\x1E\x0E\x5F\x5E\x0C\xE3\xF3\xEB\xF3\xF0\xBF\xA6\xA2\xFB" + 0xA94C8E45).s, error.what());
-					selectedScript.RemoveAllCallbacks();
-				}
-			}
-		}
-		ImGui::EndChild();
-
-		delete[] items;
-
-		ImGui::End();
-		ImGui::PopStyleColor(12);
-		ImGui::PopStyleVar();
-	}
-
-	const char* text = getRandomText();
-	const ImVec2 textCalculated = ImGui::CalcTextSize(text);
-	const ImVec2 versionCalculated = ImGui::CalcTextSize("v1.103 @ 2023");
-
-	auto flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar;
-	
 	ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 12.0f);
 	ImGui::SetNextWindowPos(ImVec2(40, 40), ImGuiCond_Once);
-	ImGui::SetNextWindowSize({ 720, 490 });
+	ImGui::SetNextWindowSize(ImVec2(menuWidth, menuHeight));
 	ImGui::Begin(/*##menu*/XorStr<0x9A, 7, 0x2A9A8C6C>("\xB9\xB8\xF1\xF8\xF0\xEA" + 0x2A9A8C6C).s, nullptr, flags);
 	{
 		ImDrawList* draw = ImGui::GetWindowDrawList();
-		ImVec2 pos = ImGui::GetWindowPos();
+		const ImVec2 pos = ImGui::GetWindowPos();
+		const int currentAlpha = Sakura::Menu::currentAlphaFade;
+		const int panelAlpha = ImMax(0, currentAlpha - 28);
 
-		draw->AddRectFilled({ pos.x, pos.y }, { pos.x + 720, pos.y + 50 }, ImColor((int)(cvar.visual_menu_color_header[0] * 255), (int)(cvar.visual_menu_color_header[1] * 255), (int)(cvar.visual_menu_color_header[2] * 255), Sakura::Menu::currentAlphaFade), 6.f, ImDrawCornerFlags_Top);
-		draw->AddRectFilled({ pos.x, pos.y + 50 }, { pos.x + 720, pos.y + 490 }, ImColor((int)(cvar.visual_menu_color_items[0] * 255), (int)(cvar.visual_menu_color_items[1] * 255), (int)(cvar.visual_menu_color_items[2] * 255), Sakura::Menu::currentAlphaFade), 6.f, ImDrawCornerFlags_All);
-		draw->AddRectFilled({ pos.x, pos.y + 470 }, { pos.x + 720, pos.y + 490 }, ImColor((int)(cvar.visual_menu_color_footer[0] * 255), (int)(cvar.visual_menu_color_footer[1] * 255), (int)(cvar.visual_menu_color_footer[2] * 255), Sakura::Menu::currentAlphaFade), 6.f, ImDrawCornerFlags_Bot);
+		draw->AddRectFilled(pos, ImVec2(pos.x + menuWidth, pos.y + menuHeight), ImColor((int)(cvar.visual_menu_color_items[0] * 255), (int)(cvar.visual_menu_color_items[1] * 255), (int)(cvar.visual_menu_color_items[2] * 255), currentAlpha), 12.0f);
+		draw->AddRectFilled(pos, ImVec2(pos.x + menuWidth, pos.y + headerHeight), ImColor((int)(cvar.visual_menu_color_header[0] * 255), (int)(cvar.visual_menu_color_header[1] * 255), (int)(cvar.visual_menu_color_header[2] * 255), currentAlpha), 12.0f, ImDrawCornerFlags_Top);
+		draw->AddRectFilled(ImVec2(pos.x, pos.y), ImVec2(pos.x + menuWidth, pos.y + 3.0f), Sakura::Menu::GetMenuColor(alpha), 12.0f, ImDrawCornerFlags_Top);
+		draw->AddLine(ImVec2(pos.x + 18.0f, pos.y + headerHeight), ImVec2(pos.x + menuWidth - 18.0f, pos.y + headerHeight), ImColor(255, 255, 255, (int)(28 * alpha)), 1.0f);
 
-		draw->AddText({ pos.x + 10, pos.y + 470 + 10 - textCalculated.y / 2 }, ImColor((int)(cvar.visual_menu_color_footer_text[0] * 255), (int)(cvar.visual_menu_color_footer_text[1] * 255), (int)(cvar.visual_menu_color_footer_text[2] * 255), Sakura::Menu::currentAlphaFade), text);
-		draw->AddText({ pos.x + 710 - versionCalculated.x, pos.y + 470 + 10 - versionCalculated.y / 2 }, ImColor((int)(cvar.visual_menu_color_footer_text[0] * 255), (int)(cvar.visual_menu_color_footer_text[1] * 255), (int)(cvar.visual_menu_color_footer_text[2] * 255), Sakura::Menu::currentAlphaFade), "v1.103 @ 2023");
+		draw->AddRectFilled(ImVec2(pos.x + 12.0f, pos.y + 74.0f), ImVec2(pos.x + 168.0f, pos.y + menuHeight - footerHeight - 10.0f), ImColor(13, 13, 17, panelAlpha), 10.0f);
+		draw->AddRectFilled(ImVec2(pos.x + 180.0f, pos.y + 74.0f), ImVec2(pos.x + menuWidth - 12.0f, pos.y + menuHeight - footerHeight - 10.0f), ImColor((int)(cvar.visual_menu_color_widgets[0] * 255), (int)(cvar.visual_menu_color_widgets[1] * 255), (int)(cvar.visual_menu_color_widgets[2] * 255), panelAlpha), 10.0f);
 
-		ImGui::PushFont(Sakura::Menu::Fonts::icons);
-		ImGui::SetCursorPos({ 20,25 - ImGui::CalcTextSize(/*P*/XorStr<0x6A, 2, 0x100FA605>("\x3A" + 0x100FA605).s).y / 2 });
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(cvar.visual_menu_color_logo[0], cvar.visual_menu_color_logo[1], cvar.visual_menu_color_logo[2], 1.f));
-		ImGui::Text(/*P*/XorStr<0x6A, 2, 0x100FA605>("\x3A" + 0x100FA605).s);
-		ImGui::PopStyleColor();
-		ImGui::PopFont();
-
-		ImGui::SameLine();
+		draw->AddRectFilled(ImVec2(pos.x, pos.y + menuHeight - footerHeight), ImVec2(pos.x + menuWidth, pos.y + menuHeight), ImColor((int)(cvar.visual_menu_color_footer[0] * 255), (int)(cvar.visual_menu_color_footer[1] * 255), (int)(cvar.visual_menu_color_footer[2] * 255), currentAlpha), 12.0f, ImDrawCornerFlags_Bot);
+		draw->AddText(ImVec2(pos.x + 14.0f, pos.y + menuHeight - footerHeight * 0.5f - footerLeftCalculated.y * 0.5f), ImColor((int)(cvar.visual_menu_color_footer_text[0] * 255), (int)(cvar.visual_menu_color_footer_text[1] * 255), (int)(cvar.visual_menu_color_footer_text[2] * 255), currentAlpha), footerLeftText);
+		draw->AddText(ImVec2(pos.x + menuWidth - 14.0f - versionCalculated.x, pos.y + menuHeight - footerHeight * 0.5f - versionCalculated.y * 0.5f), ImColor((int)(cvar.visual_menu_color_footer_text[0] * 255), (int)(cvar.visual_menu_color_footer_text[1] * 255), (int)(cvar.visual_menu_color_footer_text[2] * 255), currentAlpha), versionText);
 
 		ImGui::PushFont(Sakura::Menu::Fonts::titleCheatFont);
-		ImGui::SetCursorPos({ 50,25 - ImGui::CalcTextSize(/*Sakura*/XorStr<0xA4,7,0x0D9D1D33>("\xF7\xC4\xCD\xD2\xDA\xC8" + 0x0D9D1D33).s).y / 2 });
-		ImGui::Text(/*Sakura*/XorStr<0xA4, 7, 0x0D9D1D33>("\xF7\xC4\xCD\xD2\xDA\xC8" + 0x0D9D1D33).s);
+		ImGui::SetCursorPos(ImVec2(18.0f, 13.0f));
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(cvar.visual_menu_color_logo[0], cvar.visual_menu_color_logo[1], cvar.visual_menu_color_logo[2], 1.0f));
+		ImGui::Text("SAKURA");
+		ImGui::PopStyleColor();
 		ImGui::PopFont();
+		ImGui::SetCursorPos(ImVec2(19.0f, 39.0f));
+		ImGui::TextDisabled("v2.0.2");
 
-		ImGui::SetCursorPos({ 200,0 });
+		ImGui::SetCursorPos(ImVec2(180.0f, 6.0f));
 		ImGui::BeginGroup();
-		{
-			DrawButtons();
-		}
+		DrawButtons();
 		ImGui::EndGroup();
 
-		ImGui::SetCursorPos({ 10,60 });
-		ImGui::BeginGroup();
+		ImGui::SetCursorPos(ImVec2(16.0f, 84.0f));
+		ImGui::TextDisabled("SECTION");
+		ImGui::SetCursorPos(ImVec2(15.0f, 105.0f));
+		ImGui::BeginChild("##categories", ImVec2(150.0f, 360.0f), false, ImGuiWindowFlags_NoScrollbar);
+		DrawCategoryButtons();
+		ImGui::EndChild();
+
+		ImGui::SetCursorPos(ImVec2(190.0f, 84.0f));
+		ImGui::TextDisabled(tab == 5 ? "LUA WORKSPACE" : "SETTINGS");
+		ImGui::SetCursorPos(ImVec2(190.0f, 105.0f));
+		ImGui::BeginChild(/*##items*/XorStr<0x05, 8, 0x42ADB240>("\x26\x25\x6E\x7C\x6C\x67\x78" + 0x42ADB240).s, ImVec2(548.0f, 360.0f), false);
 		{
-			DrawCategoryButtons();
+			ImGui::PushFont(Sakura::Menu::Fonts::titleTabFont);
+			ImGui::SetCursorPos(ImVec2(10.0f, 10.0f));
+			ImGui::BeginGroup();
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(5.0f, 5.0f));
+			DrawTab();
+			ImGui::PopStyleVar();
+			ImGui::EndGroup();
+			ImGui::PopFont();
 		}
-		ImGui::EndGroup();
+		ImGui::EndChild();
 
-		ImGui::SetCursorPos({ 170,60 });
-		ImGui::BeginGroup();
-		{
-			ImGui::BeginChild(/*##items*/XorStr<0x05, 8, 0x42ADB240>("\x26\x25\x6E\x7C\x6C\x67\x78" + 0x42ADB240).s, { 530, 400 });
-			{
-				// 30, 35, 40
-				draw->AddRectFilled(ImGui::GetWindowPos(), { ImGui::GetWindowPos().x + 530,ImGui::GetWindowPos().y + 400 }, ImColor((int)(cvar.visual_menu_color_widgets[0] * 255), (int)(cvar.visual_menu_color_widgets[1] * 255), (int)(cvar.visual_menu_color_widgets[2] * 255), Sakura::Menu::currentAlphaFade - 55), 8.f);
-
-				ImGui::PushFont(Sakura::Menu::Fonts::titleTabFont);
-				ImGui::SetCursorPos({ 10,10 });
-				ImGui::BeginGroup();
-				{
-					ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 3, 3 });
-					DrawTab();
-					ImGui::PopStyleVar();
-				}
-				ImGui::EndGroup();
-				ImGui::PopFont();
-			}
-			ImGui::EndChild();
-		}
-		ImGui::EndGroup();
-
-		draw->AddRect({ pos.x, pos.y }, { pos.x + 720, pos.y + 490 }, Sakura::Menu::GetMenuColor(alpha), 6.f);
+		draw->AddRect(pos, ImVec2(pos.x + menuWidth, pos.y + menuHeight), ImColor(255, 255, 255, (int)(20 * alpha)), 12.0f, 15, 1.0f);
 	}
 	ImGui::End();
-	ImGui::PopStyleVar(2);
+	ImGui::PopStyleVar(3);
 }

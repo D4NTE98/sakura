@@ -48,6 +48,9 @@ void Sakura::Esp::DynamicSound(int entid, DWORD entchannel, char* szSoundFile, f
 			if (strstr(szSoundFile, "headshot"))
 				damage = g_Engine.pfnRandomLong(75, 80);
 
+			if (damage > 0)
+				Sakura::Esp::Player::RegisterDamage(entid, damage);
+
 			if (damage <= g_Player[entid].iHealth)
 				g_Player[entid].iHealth -= damage;
 
@@ -79,15 +82,15 @@ void Sakura::Esp::DynamicSound(int entid, DWORD entchannel, char* szSoundFile, f
 		if (!script.HasCallback(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_DYNAMICSOUND))
 			continue;
 
-		auto& callbacks = script.GetCallbacks(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_DYNAMICSOUND);
+		auto callbacks = script.GetCallbacks(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_DYNAMICSOUND);
 		for (const auto& callback : callbacks)
 		{
 			try
 			{
 				Vector origin;
 				origin.x = fOrigin[0];
-				origin.x = fOrigin[1];
-				origin.x = fOrigin[2];
+				origin.y = fOrigin[1];
+				origin.z = fOrigin[2];
 
 				callback(entid, std::string(szSoundFile), realDynamicSoundVolume, origin);
 			}

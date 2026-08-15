@@ -4,6 +4,42 @@ std::deque<playeresp_t> PlayerEsp;
 std::deque<worldesp_t> WorldEsp;
 std::deque<worldespprev_t> WorldEspPrev;
 
+namespace
+{
+	DWORD lastLocalShotTime = 0;
+	DWORD lastDamageTime[33] = {};
+	int lastDamage[33] = {};
+}
+
+void Sakura::Esp::Player::RegisterLocalShot()
+{
+	lastLocalShotTime = GetTickCount();
+}
+
+void Sakura::Esp::Player::RegisterDamage(const int index, const int damage)
+{
+	if (index < 1 || index > 32 || damage <= 0)
+		return;
+
+	if (g_Player[index].iTeam == g_Local.iTeam)
+		return;
+
+	const DWORD now = GetTickCount();
+
+	if (now - lastLocalShotTime > 550)
+		return;
+
+	if (now - lastDamageTime[index] <= 240)
+		lastDamage[index] += damage;
+	else
+		lastDamage[index] = damage;
+
+	if (lastDamage[index] > 999)
+		lastDamage[index] = 999;
+
+	lastDamageTime[index] = now;
+}
+
 void Rect(Vector2D Pos, Vector2D Size, ImU32 color)
 {
 	ImGui::GetCurrentWindow()->DrawList->AddRect({ Pos.x, Pos.y }, { Pos.x + Size.x, Pos.y + Size.y }, color);
@@ -73,25 +109,123 @@ void Sakura::Esp::Player::DrawHealth(const int index, const float x, const float
 		return;
 
 	static int playerHealth[33];
-	static double hp[33][Sakura::Animation::max_count], change_timestamp;
+	static double hp[33][Sakura::Animation::max_count];
+	static double changeTimestamp[33] = {};
 
 	playerHealth[index] = g_Player[index].iHealth;
 
-	Sakura::Animation::Calculate(hp[index], change_timestamp, playerHealth[index], 100, 0.8);
+	if (playerHealth[index] < 0)
+		playerHealth[index] = 0;
+	if (playerHealth[index] > 100)
+		playerHealth[index] = 100;
 
-	float red = 255 - (playerHealth[index] * 2.55);
-	float green = playerHealth[index] * 2.55;
-	float healthHeight = (h / 100) * hp[index][Sakura::Animation::calculated];
+	Sakura::Animation::Calculate(hp[index], changeTimestamp[index], playerHealth[index], 100, 0.65);
 
-	ImGui::GetCurrentWindow()->DrawList->AddRect({ x - 8, y + h + 1 }, { x - 4, y - 1 }, ImColor(0.f, 0.f, 0.f, 1.f));
-	ImGui::GetCurrentWindow()->DrawList->AddRectFilled({ x - 7, y + h }, { x - 5, (y + h) - healthHeight }, ImColor(red / 255.f, green / 222.f, 0.f, 1.f));
+	float displayedHealth = static_cast<float>(hp[index][Sakura::Animation::calculated]);
+	if (displayedHealth < 0.0f)
+		displayedHealth = 0.0f;
+	if (displayedHealth > 100.0f)
+		displayedHealth = 100.0f;
+
+	const float ratio = displayedHealth / 100.0f;
+	const float barWidth = 5.0f;
+	const float barX = x - 11.0f;
+	const float fillTop = y + h - (h * ratio);
+
+	float red;
+	float green;
+
+	if (ratio < 0.5f)
+	{
+		red = 1.0f;
+		green = ratio * 2.0f;
+	}
+	else
+	{
+		red = (1.0f - ratio) * 2.0f;
+		green = 1.0f;
+	}
+
+	ImDrawList* drawList = ImGui::GetCurrentWindow()->DrawList;
+
+	drawList->AddRectFilled(
+		ImVec2(barX - 2.0f, y - 2.0f),
+		ImVec2(barX + barWidth + 2.0f, y + h + 2.0f),
+		ImColor(0.025f, 0.027f, 0.035f, 0.92f),
+		3.0f
+	);
+
+	drawList->AddRectFilled(
+		ImVec2(barX, fillTop),
+		ImVec2(barX + barWidth, y + h),
+		ImColor(red, green, 0.08f, 1.0f),
+		2.0f
+	);
 
 	if (playerHealth[index] < 100)
 	{
-		std::string healthString = std::to_string(static_cast<int>(hp[index][Sakura::Animation::calculated]));
-		int calc = ImGui::CalcTextSize(healthString.c_str()).x;
-		ImGui::GetCurrentWindow()->DrawList->AddText({ x - 7 - calc, (y + h) - healthHeight }, Sakura::Colors::White(), healthString.c_str());
+		char healthText[8] = {};
+		sprintf_s(healthText, "%d", static_cast<int>(displayedHealth + 0.5f));
+
+		const ImVec2 textSize = ImGui::CalcTextSize(healthText);
+		float textY = fillTop - textSize.y * 0.5f;
+
+		if (textY < y)
+			textY = y;
+		if (textY + textSize.y > y + h)
+			textY = y + h - textSize.y;
+
+		const ImVec2 textPos(barX - textSize.x - 7.0f, textY);
+
+		drawList->AddRectFilled(
+			ImVec2(textPos.x - 4.0f, textPos.y - 2.0f),
+			ImVec2(textPos.x + textSize.x + 4.0f, textPos.y + textSize.y + 2.0f),
+			ImColor(0.025f, 0.027f, 0.035f, 0.88f),
+			3.0f
+		);
+
+		drawList->AddText(textPos, ImColor(0.94f, 0.95f, 0.98f, 1.0f), healthText);
 	}
+}
+
+void Sakura::Esp::Player::DrawDamage(const int index, const float x, const float y, const float w, const float h)
+{
+	if (!cvar.visual_damage || index < 1 || index > 32 || lastDamage[index] <= 0)
+		return;
+
+	const DWORD now = GetTickCount();
+	const DWORD age = now - lastDamageTime[index];
+	const float duration = 1350.0f;
+
+	if (age >= static_cast<DWORD>(duration))
+		return;
+
+	const float progress = static_cast<float>(age) / duration;
+	const float alpha = 1.0f - progress;
+	const float rise = progress * 18.0f;
+
+	char damageText[24] = {};
+	sprintf_s(damageText, "-%d HP", lastDamage[index]);
+
+	const ImVec2 textSize = ImGui::CalcTextSize(damageText);
+	const ImVec2 textPos(x + w + 14.0f, y + h * 0.36f - rise);
+	ImDrawList* drawList = ImGui::GetCurrentWindow()->DrawList;
+
+	drawList->AddRectFilled(
+		ImVec2(textPos.x - 7.0f, textPos.y - 4.0f),
+		ImVec2(textPos.x + textSize.x + 8.0f, textPos.y + textSize.y + 4.0f),
+		ImColor(0.035f, 0.037f, 0.047f, 0.88f * alpha),
+		5.0f
+	);
+
+	drawList->AddRectFilled(
+		ImVec2(textPos.x - 7.0f, textPos.y - 4.0f),
+		ImVec2(textPos.x - 4.0f, textPos.y + textSize.y + 4.0f),
+		ImColor(0.94f, 0.22f, 0.36f, alpha),
+		5.0f
+	);
+
+	drawList->AddText(textPos, ImColor(1.0f, 0.86f, 0.89f, alpha), damageText);
 }
 
 void Sakura::Esp::Player::DrawVip(const int index, const float x, const float y)
@@ -206,6 +340,7 @@ void Sakura::Esp::Player::Draw()
 		{
 			DrawBox(x, y, w, h, boxColor);
 			DrawHealth(Esp.index, x, y, h);
+			DrawDamage(Esp.index, x, y, w, h);
 			DrawReload(Esp.sequence, xo + w, y, Esp.index);
 			DrawName(Esp.index, x + (w / 2), y);
 			DrawModel(Esp.model, x + (w / 2), y + h);

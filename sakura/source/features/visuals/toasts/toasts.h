@@ -15,63 +15,76 @@ enum ToastPhase_
 class ToastInfo
 {
 private:
-	int seconds;
+	int duration;
 	char text[512];
 	uint64_t creationTime;
- 
+
 public:
-	auto get_title() -> std::string { return this->text; }
+	auto get_title() const -> std::string { return this->text; }
+	auto get_duration() const -> int { return this->duration; }
+	auto get_elapsed_time() const -> uint64_t { return GetTickCount64() - this->creationTime; }
+	auto get_creation_time() const -> uint64_t { return this->creationTime; }
 
-	auto get_duration() -> int { return this->seconds; }
-
-	auto get_elapsed_time() { return GetTickCount() - this->creationTime; }
-
-	auto get_creation_time() -> uint64_t { return this->creationTime; }
-
-	auto get_phase() -> const ToastPhase
+	auto get_phase() const -> ToastPhase
 	{
 		const auto elapsed = get_elapsed_time();
+		const float fade = cvar.notifications_fade > 1.0f ? cvar.notifications_fade : 1.0f;
 
-		if (elapsed > cvar.notifications_fade + this->seconds + cvar.notifications_fade)
-		{
+		if (elapsed > fade + this->duration + fade)
 			return ToastPhase_Expired;
-		}
-		else if (elapsed > cvar.notifications_fade + this->seconds)
-		{
+
+		if (elapsed > fade + this->duration)
 			return ToastPhase_FadeOut;
-		}
-		else if (elapsed > cvar.notifications_fade)
-		{
+
+		if (elapsed > fade)
 			return ToastPhase_Wait;
-		}
-		else
-		{
-			return ToastPhase_FadeIn;
-		}
+
+		return ToastPhase_FadeIn;
 	}
 
-	auto get_fade_percent() -> const float
+	auto get_fade_percent() const -> float
 	{
 		const auto phase = get_phase();
-		const auto elapsed = get_elapsed_time();
+		const float elapsed = static_cast<float>(get_elapsed_time());
+		const float fade = cvar.notifications_fade > 1.0f ? cvar.notifications_fade : 1.0f;
 
 		if (phase == ToastPhase_FadeIn)
 		{
-			return ((float)elapsed / (float)cvar.notifications_fade) * 1.0f;
-		}
-		else if (phase == ToastPhase_FadeOut)
-		{
-			return (1.f - (((float)elapsed - cvar.notifications_fade - (float)this->seconds) / cvar.notifications_fade)) * 1.0f;
+			float value = elapsed / fade;
+			if (value < 0.0f) value = 0.0f;
+			if (value > 1.0f) value = 1.0f;
+			return value;
 		}
 
-		return 1.f * 1.0f;
+		if (phase == ToastPhase_FadeOut)
+		{
+			float value = 1.0f - ((elapsed - fade - static_cast<float>(this->duration)) / fade);
+			if (value < 0.0f) value = 0.0f;
+			if (value > 1.0f) value = 1.0f;
+			return value;
+		}
+
+		return 1.0f;
+	}
+
+	auto get_progress() const -> float
+	{
+		const float elapsed = static_cast<float>(get_elapsed_time());
+		const float fade = cvar.notifications_fade > 1.0f ? cvar.notifications_fade : 1.0f;
+		float activeElapsed = elapsed - fade;
+		if (activeElapsed < 0.0f) activeElapsed = 0.0f;
+		if (activeElapsed > static_cast<float>(this->duration)) activeElapsed = static_cast<float>(this->duration);
+		float value = 1.0f - activeElapsed / static_cast<float>(this->duration);
+		if (value < 0.0f) value = 0.0f;
+		if (value > 1.0f) value = 1.0f;
+		return value;
 	}
 
 	ToastInfo(int displaySeconds, const char* text)
 	{
-		sprintf_s(this->text, text);
-		this->seconds = displaySeconds * 1000;
-		this->creationTime = GetTickCount();
+		strncpy_s(this->text, sizeof(this->text), text ? text : "", _TRUNCATE);
+		this->duration = (displaySeconds > 0 ? displaySeconds : 1) * 1000;
+		this->creationTime = GetTickCount64();
 	}
 };
 
@@ -80,7 +93,6 @@ extern std::vector<ToastInfo> toasts;
 namespace Toast
 {
 	void Create(int displaySeconds, const char* text, ...);
-	//void Create(const ToastInfo& toast);
 	void Remove(int toastIndex);
 	void Render();
 }

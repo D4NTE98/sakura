@@ -351,11 +351,12 @@ void Sakura::Hitboxes::GetPlayerHitboxes(const cl_entity_s* ent)
 		Esp.weaponmodel = ent->curstate.weaponmodel;
 		strcpy(Esp.model, Sakura::Strings::getfilename(m_pRenderModel->name).c_str());
 
-		playeraim_t Aim;
+		playeraim_t Aim = {};
 
 		Aim.index = playerIndex;
 		Aim.origin = ent->origin;
 		Aim.sequence = ent->curstate.sequence;
+		Aim.backtrack = false;
 		strcpy(Aim.modelname, m_pRenderModel->name);
 
 		int numhitboxes = 0;
@@ -430,6 +431,36 @@ void Sakura::Hitboxes::GetPlayerHitboxes(const cl_entity_s* ent)
 		}
 		PlayerEsp.push_back(Esp);
 		PlayerAim.push_back(Aim);
+
+		if (cvar.misc_fakelatency && cvar.misc_fakelatency_amount > 0.0f && pmove && playerIndex != pmove->player_index + 1)
+		{
+			Vector backtrackOrigin;
+			if (Sakura::Backtrack::Player(const_cast<cl_entity_s*>(ent), g_Local.sLerpMSec, backtrackOrigin))
+			{
+				Vector offset = backtrackOrigin - ent->origin;
+				if (offset.LengthSqr() > 0.01f)
+				{
+					playeraim_t BacktrackAim = Aim;
+					BacktrackAim.backtrack = true;
+					BacktrackAim.origin = backtrackOrigin;
+
+					Vector vEye = pmove->origin + pmove->view_ofs;
+					for (auto& hitbox : BacktrackAim.PlayerAimHitbox)
+					{
+						hitbox.Hitbox += offset;
+						hitbox.HitboxFOV = g_Local.vPrevForward.AngleBetween(hitbox.Hitbox - vEye);
+
+						for (size_t point = 0; point < 8; ++point)
+						{
+							hitbox.HitboxMulti[point] += offset;
+							hitbox.HitboxPointsFOV[point] = g_Local.vPrevForward.AngleBetween(hitbox.HitboxMulti[point] - vEye);
+						}
+					}
+
+					PlayerAim.push_back(BacktrackAim);
+				}
+			}
+		}
 	}
 }
 

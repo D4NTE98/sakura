@@ -459,6 +459,7 @@ void CVARlist::init()
 	Sakura::Cvar::New(/*visual_box_type*/XorStr<0x8F, 16, 0x5D4A9A74>("\xF9\xF9\xE2\xE7\xF2\xF8\xCA\xF4\xF8\xE0\xC6\xEE\xE2\xEC\xF8" + 0x5D4A9A74).s, cvar.visual_box_type);
 	Sakura::Cvar::New(/*visual_box_fill*/XorStr<0xDC, 16, 0xE4DBC78F>("\xAA\xB4\xAD\xAA\x81\x8D\xBD\x81\x8B\x9D\xB9\x81\x81\x85\x86" + 0xE4DBC78F).s, cvar.visual_box_fill);
 	Sakura::Cvar::New(/*visual_health*/XorStr<0xF3, 14, 0x6C3025D8>("\x85\x9D\x86\x83\x96\x94\xA6\x92\x9E\x9D\x91\x8A\x97" + 0x6C3025D8).s, cvar.visual_health);
+	Sakura::Cvar::New("visual_damage", cvar.visual_damage);
 	Sakura::Cvar::New(/*visual_visual_team*/XorStr<0x9A, 19, 0x4B29B193>("\xEC\xF2\xEF\xE8\xFF\xF3\xFF\xD7\xCB\xD0\xD1\xC4\xCA\xF8\xDC\xCC\xCB\xC6" + 0x4B29B193).s, cvar.visual_visual_team);
 	Sakura::Cvar::New(/*visual_sound_steps*/XorStr<0x7D, 19, 0x91D35E9E>("\x0B\x17\x0C\xF5\xE0\xEE\xDC\xF7\xEA\xF3\xE9\xEC\xD6\xF9\xFF\xE9\xFD\xFD" + 0x91D35E9E).s, cvar.visual_sound_steps);
 	Sakura::Cvar::New(/*visual_sound_steps_segments*/XorStr<0xDC, 28, 0x7037A02C>("\xAA\xB4\xAD\xAA\x81\x8D\xBD\x90\x8B\x90\x88\x83\xB7\x9A\x9E\x8E\x9C\x9E\xB1\x9C\x95\x96\x9F\x96\x9A\x81\x85" + 0x7037A02C).s, cvar.visual_sound_steps_segments, 15.0);
@@ -643,6 +644,8 @@ void CVARlist::init()
 	Sakura::Cvar::New(/*visual_box_world_fill*/XorStr<0xC0, 22, 0x240C56D4>("\xB6\xA8\xB1\xB6\xA5\xA9\x99\xA5\xA7\xB1\x95\xBC\xA3\xBF\xA2\xAB\x8F\xB7\xBB\xBF\xB8" + 0x240C56D4).s, cvar.visual_box_world_fill);
 	Sakura::Cvar::New(/*visual_player_glow*/XorStr<0xE1, 19, 0x04E8100D>("\x97\x8B\x90\x91\x84\x8A\xB8\x98\x85\x8B\x92\x89\x9F\xB1\x88\x9C\x9E\x85" + 0x04E8100D).s, cvar.visual_player_glow);
 	Sakura::Cvar::New(/*visual_player_glow_thickness*/XorStr<0xAB, 29, 0x55320406>("\xDD\xC5\xDE\xDB\xCE\xDC\xEE\xC2\xDF\xD5\xCC\xD3\xC5\xE7\xDE\xD6\xD4\xCB\xE2\xCA\xD7\xA9\xA2\xA9\xAD\xA1\xB6\xB5" + 0x55320406).s, cvar.visual_player_glow_thickness, 12.0);
+	Sakura::Cvar::New("visual_edge_chams", cvar.visual_edge_chams);
+	Sakura::Cvar::New("visual_edge_chams_thickness", cvar.visual_edge_chams_thickness, 8.0);
 	Sakura::Cvar::New(/*visual_player_glow_color_ct[0]*/XorStr<0xA1, 31, 0xB167A50C>("\xD7\xCB\xD0\xD1\xC4\xCA\xF8\xD8\xC5\xCB\xD2\xC9\xDF\xF1\xC8\xDC\xDE\xC5\xEC\xD7\xDA\xDA\xD8\xCA\xE6\xD9\xCF\xE7\x8D\xE3" + 0xB167A50C).s, cvar.visual_player_glow_color_ct[0]);
 	Sakura::Cvar::New(/*visual_player_glow_color_ct[1]*/XorStr<0x1F, 31, 0x22841834>("\x69\x49\x52\x57\x42\x48\x7A\x56\x4B\x49\x50\x4F\x59\x73\x4A\x42\x40\x47\x6E\x51\x5C\x58\x5A\x44\x68\x5B\x4D\x61\x0A\x61" + 0x22841834).s, cvar.visual_player_glow_color_ct[1]);
 	Sakura::Cvar::New(/*visual_player_glow_color_ct[2]*/XorStr<0xF3, 31, 0xCEA8EDE2>("\x85\x9D\x86\x83\x96\x94\xA6\x8A\x97\x9D\x84\x9B\x8D\x5F\x66\x6E\x6C\x73\x5A\x65\x68\x64\x66\x78\x54\x6F\x79\x55\x3D\x4D" + 0xCEA8EDE2).s, cvar.visual_player_glow_color_ct[2], 1.0);

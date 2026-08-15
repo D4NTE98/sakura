@@ -77,45 +77,47 @@ bool Sakura::Menu::Widgets::Tab(const char* icon, const char* label, const ImVec
 	if (window->SkipItems)
 		return false;
 
-	static float sizeplus = 0.f;
-
 	ImGuiContext& g = *GImGui;
 	const ImGuiStyle& style = g.Style;
 	const ImGuiID id = window->GetID(label);
-	const ImVec2 label_size = ImGui::CalcTextSize(label, NULL, true);
-
-	ImVec2 pos = window->DC.CursorPos;
-
-	ImVec2 size = ImGui::CalcItemSize(size_arg, label_size.x + style.FramePadding.x * 2.f, label_size.y + style.FramePadding.y * 2.f);
-
+	const ImVec2 labelSize = ImGui::CalcTextSize(label, NULL, true);
+	const ImVec2 pos = window->DC.CursorPos;
+	const ImVec2 size = ImGui::CalcItemSize(size_arg, labelSize.x + style.FramePadding.x * 2.0f, labelSize.y + style.FramePadding.y * 2.0f);
 	const ImRect bb(pos, ImVec2(pos.x + size.x, pos.y + size.y));
+
 	ImGui::ItemSize(size, style.FramePadding.y);
 	if (!ImGui::ItemAdd(bb, id))
 		return false;
 
-	bool hovered, held;
-	bool pressed = ImGui::ButtonBehavior(bb, id, &hovered, &held, 0);
-
-	float t = selected ? 1.0f : 0.0f;
-
-	float ANIM_SPEED = (ImGui::GetIO().Framerate / 4.f) * (1.f / ImGui::GetIO().Framerate);
-	if (g.LastActiveId == g.CurrentWindow->GetID(label))// && g.LastActiveIdTimer < ANIM_SPEED)
-	{
-		float t_anim = ImSaturate(g.LastActiveIdTimer / ANIM_SPEED);
-		t = selected ? (t_anim) : (1.0f - t_anim);
-	}
-
-	ImU32 bg_col = ImGui::GetColorU32(ImLerp(ImVec4(cvar.visual_menu_color_items[0], cvar.visual_menu_color_items[1], cvar.visual_menu_color_items[2], 0.f), ImVec4(cvar.visual_menu_color_tab_selected[0], cvar.visual_menu_color_tab_selected[1], cvar.visual_menu_color_tab_selected[2], Sakura::Menu::currentAlphaFade / 255.f), t));
+	bool hovered = false;
+	bool held = false;
+	const bool pressed = ImGui::ButtonBehavior(bb, id, &hovered, &held, 0);
+	const int alpha = Sakura::Menu::currentAlphaFade;
 
 	if (selected)
-		window->DrawList->AddRectFilled(bb.Min, bb.Max, bg_col);
+		window->DrawList->AddRectFilled(bb.Min, bb.Max, ImColor(28, 28, 35, alpha), 8.0f);
+	else if (hovered)
+		window->DrawList->AddRectFilled(bb.Min, bb.Max, ImColor(23, 23, 29, alpha), 8.0f);
 
-	ImGui::PushFont(Sakura::Menu::Fonts::titleTabFont);
-	window->DrawList->AddText(ImVec2(bb.Min.x + 35, bb.Min.y + 19), ImColor(255 / 255.f, 255 / 255.f, 255 / 255.f, Sakura::Menu::currentAlphaFade / 255.f), label);
-	ImGui::PopFont();
+	if (selected)
+		window->DrawList->AddRectFilled(ImVec2(bb.Min.x + 10.0f, bb.Max.y - 3.0f), ImVec2(bb.Max.x - 10.0f, bb.Max.y), GetMenuColor(alpha / 255.0f), 3.0f);
 
 	ImGui::PushFont(Sakura::Menu::Fonts::icons);
-	window->DrawList->AddText(ImVec2(bb.Min.x + 5, bb.Min.y + size_arg.y / 2 - ImGui::CalcTextSize(icon).y / 2), GetMenuColor(Sakura::Menu::currentAlphaFade / 255.f), icon);
+	const ImVec2 iconSize = ImGui::CalcTextSize(icon);
+	window->DrawList->AddText(
+		ImVec2(bb.Min.x + 10.0f, bb.Min.y + (size.y - iconSize.y) * 0.5f),
+		selected ? GetMenuColor(alpha / 255.0f) : ImColor(150, 151, 160, alpha),
+		icon
+	);
+	ImGui::PopFont();
+
+	ImGui::PushFont(Sakura::Menu::Fonts::titleTabFont);
+	const ImVec2 textSize = ImGui::CalcTextSize(label);
+	window->DrawList->AddText(
+		ImVec2(bb.Min.x + 37.0f, bb.Min.y + (size.y - textSize.y) * 0.5f),
+		selected ? ImColor(245, 245, 248, alpha) : ImColor(180, 181, 188, alpha),
+		label
+	);
 	ImGui::PopFont();
 
 	return pressed;
@@ -127,45 +129,40 @@ bool Sakura::Menu::Widgets::SubTab(const char* label, const ImVec2& size_arg, co
 	if (window->SkipItems)
 		return false;
 
-	static float sizeplus = 0.f;
-
 	ImGuiContext& g = *GImGui;
 	const ImGuiStyle& style = g.Style;
 	const ImGuiID id = window->GetID(label);
-	const ImVec2 label_size = ImGui::CalcTextSize(label, NULL, true);
-
-	ImVec2 pos = window->DC.CursorPos;
-
-	ImVec2 size = ImGui::CalcItemSize(size_arg, label_size.x + style.FramePadding.x * 2.0f, label_size.y + style.FramePadding.y * 2.0f);
-
+	const ImVec2 labelSize = ImGui::CalcTextSize(label, NULL, true);
+	const ImVec2 pos = window->DC.CursorPos;
+	const ImVec2 size = ImGui::CalcItemSize(size_arg, labelSize.x + style.FramePadding.x * 2.0f, labelSize.y + style.FramePadding.y * 2.0f);
 	const ImRect bb(pos, ImVec2(pos.x + size.x, pos.y + size.y));
+
 	ImGui::ItemSize(size, style.FramePadding.y);
 	if (!ImGui::ItemAdd(bb, id))
 		return false;
 
-	bool hovered, held;
-	bool pressed = ImGui::ButtonBehavior(bb, id, &hovered, &held, 0);
-
-	float t = selected ? 1.0f : 0.0f;
-
-	float ANIM_SPEED = (ImGui::GetIO().Framerate / 4.f) * (1.f / ImGui::GetIO().Framerate);
-	if (g.LastActiveId == g.CurrentWindow->GetID(label))
-	{
-		float t_anim = ImSaturate(g.LastActiveIdTimer / ANIM_SPEED);
-		t = selected ? (t_anim) : (1.0f - t_anim);
-	}
-
-	ImU32 bg_col = ImGui::GetColorU32(ImLerp(ImVec4(cvar.visual_menu_color_widgets[0], cvar.visual_menu_color_widgets[1], cvar.visual_menu_color_widgets[2], 0.f), ImVec4(cvar.visual_menu_color_subtab_selected[0], cvar.visual_menu_color_subtab_selected[1], cvar.visual_menu_color_subtab_selected[2], Sakura::Menu::currentAlphaFade / 255.f), t));
-	ImU32 bg_col2 = ImGui::GetColorU32(ImLerp(ImVec4(cvar.visual_menu_color_widgets[0], cvar.visual_menu_color_widgets[1], cvar.visual_menu_color_widgets[2], 0.f), GetMenuColor(Sakura::Menu::currentAlphaFade / 255.f), t));
+	bool hovered = false;
+	bool held = false;
+	const bool pressed = ImGui::ButtonBehavior(bb, id, &hovered, &held, 0);
+	const int alpha = Sakura::Menu::currentAlphaFade;
 
 	if (selected)
 	{
-		window->DrawList->AddRectFilled({ bb.Min.x,bb.Min.y }, { bb.Max.x,bb.Max.y }, bg_col);
-		window->DrawList->AddRectFilled({ bb.Max.x,bb.Max.y }, { bb.Max.x - 3,bb.Min.y }, bg_col2);
+		window->DrawList->AddRectFilled(bb.Min, bb.Max, ImColor(30, 30, 37, alpha), 7.0f);
+		window->DrawList->AddRectFilled(ImVec2(bb.Min.x, bb.Min.y + 6.0f), ImVec2(bb.Min.x + 3.0f, bb.Max.y - 6.0f), GetMenuColor(alpha / 255.0f), 3.0f);
+	}
+	else if (hovered)
+	{
+		window->DrawList->AddRectFilled(bb.Min, bb.Max, ImColor(24, 24, 30, alpha), 7.0f);
 	}
 
 	ImGui::PushFont(Sakura::Menu::Fonts::titleTabFont);
-	window->DrawList->AddText(ImVec2(bb.Min.x + 5, bb.Min.y + size_arg.y / 2 - ImGui::CalcTextSize(label).y / 2), ImColor(255 / 255.f, 255 / 255.f, 255 / 255.f, Sakura::Menu::currentAlphaFade / 255.f), label);
+	const ImVec2 textSize = ImGui::CalcTextSize(label);
+	window->DrawList->AddText(
+		ImVec2(bb.Min.x + 12.0f, bb.Min.y + (size.y - textSize.y) * 0.5f),
+		selected ? ImColor(245, 245, 248, alpha) : ImColor(165, 166, 174, alpha),
+		label
+	);
 	ImGui::PopFont();
 
 	return pressed;
@@ -234,54 +231,51 @@ bool Sakura::Menu::Widgets::Checkbox(const char* label, float* v)
 	ImGuiContext& g = *GImGui;
 	const ImGuiStyle& style = g.Style;
 	const ImGuiID id = window->GetID(label);
-	const ImVec2 label_size = ImGui::CalcTextSize(label, NULL, true);
-
-	float last_active_id_timer = g.LastActiveIdTimer;
-
-	const float square_sz = ImGui::GetFrameHeight();
+	const ImVec2 labelSize = ImGui::CalcTextSize(label, NULL, true);
+	const float squareSize = 18.0f;
 	const ImVec2 pos = window->DC.CursorPos;
-	const ImRect total_bb(pos, ImVec2(pos.x + square_sz + (label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f), pos.y + label_size.y + style.FramePadding.y * 2.0f));
-	ImGui::ItemSize(total_bb, style.FramePadding.y);
-	if (!ImGui::ItemAdd(total_bb, id))
+	const float height = ImMax(squareSize, labelSize.y);
+	const ImRect totalBb(pos, ImVec2(pos.x + squareSize + style.ItemInnerSpacing.x + labelSize.x, pos.y + height));
+	const ImRect checkBb(pos, ImVec2(pos.x + squareSize, pos.y + squareSize));
+
+	ImGui::ItemSize(totalBb, style.FramePadding.y);
+	if (!ImGui::ItemAdd(totalBb, id))
 		return false;
 
-	bool hovered, held;
-	bool pressed = ImGui::ButtonBehavior(total_bb, id, &hovered, &held);
+	bool hovered = false;
+	bool held = false;
+	const bool pressed = ImGui::ButtonBehavior(totalBb, id, &hovered, &held);
+
 	if (pressed)
 	{
-		*v = !(*v);
-		g.LastActiveIdTimer = 0.0f;
+		*v = *v > 0.5f ? 0.0f : 1.0f;
 		ImGui::MarkItemEdited(id);
 	}
 
-	const ImRect check_bb(pos, ImVec2(pos.x + square_sz, pos.y + square_sz));
+	const bool enabled = *v > 0.5f;
+	const int alpha = Sakura::Menu::currentAlphaFade;
 
-	if (g.LastActiveIdTimer == 0.0f && g.LastActiveId == g.CurrentWindow->GetID(label) && !pressed)
-		g.LastActiveIdTimer = last_active_id_timer;
+	window->DrawList->AddRectFilled(
+		checkBb.Min,
+		checkBb.Max,
+		enabled ? GetMenuColor(alpha / 255.0f) : ImColor(31, 31, 38, alpha),
+		5.0f
+	);
 
-	float t = *v ? 1.0f : 0.0f;
+	window->DrawList->AddRect(
+		checkBb.Min,
+		checkBb.Max,
+		hovered ? GetMenuColor(alpha / 255.0f) : ImColor(70, 71, 80, alpha),
+		5.0f,
+		15,
+		1.0f
+	);
 
-	float ANIM_SPEED = (ImGui::GetIO().Framerate / 8.f) * (1.f / ImGui::GetIO().Framerate);
-	if (g.LastActiveId == g.CurrentWindow->GetID(label))// && g.LastActiveIdTimer < ANIM_SPEED)
-	{
-		float t_anim = ImSaturate(g.LastActiveIdTimer / ANIM_SPEED);
-		t = *v ? (t_anim) : (1.0f - t_anim);
-	}
+	if (enabled)
+		Sakura::Menu::Widgets::Helpers::RenderCheckMar1k(ImVec2(checkBb.Min.x + 4.0f, checkBb.Min.y + 4.0f), ImColor(255, 255, 255, alpha), squareSize - 8.0f);
 
-	ImU32 col_bg = ImGui::GetColorU32(ImVec4(120 / 255.f, 120 / 255.f, 120 / 255.f, 120 / 255.f));
-	ImU32 col_bg2 = ImGui::GetColorU32(ImLerp(ImVec4(190 / 255.f, 190 / 255.f, 190 / 255.f, 0.f), ImVec4(GetMenuColor()), t));
-	ImU32 col_bg3 = ImGui::GetColorU32(ImLerp(ImVec4(190 / 255.f, 190 / 255.f, 190 / 255.f, 0.f), ImVec4(1.f, 1.f, 1.f, 1.f), t));
-
-	window->DrawList->AddRect(check_bb.Min, check_bb.Max, col_bg, 4.f, 15, 2.f);
-	window->DrawList->AddRectFilled(check_bb.Min, check_bb.Max, col_bg2, 4.f);
-
-	if (v)
-	{
-		Sakura::Menu::Widgets::Helpers::RenderCheckMar1k(ImVec2{ check_bb.Min.x + 4,check_bb.Min.y + 4 }, col_bg3, square_sz - 8);
-	}
-
-	if (label_size.x > 0.0f)
-		ImGui::RenderText(ImVec2(check_bb.Max.x + style.ItemInnerSpacing.x, check_bb.Min.y + style.FramePadding.y), label);
+	if (labelSize.x > 0.0f)
+		ImGui::RenderText(ImVec2(checkBb.Max.x + style.ItemInnerSpacing.x, pos.y + (height - labelSize.y) * 0.5f), label);
 
 	return pressed;
 }
@@ -398,33 +392,44 @@ bool Sakura::Menu::Widgets::Button(const char* label, const ImVec2& size_arg, Im
 	ImGuiContext& g = *GImGui;
 	const ImGuiStyle& style = g.Style;
 	const ImGuiID id = window->GetID(label);
-	const ImVec2 label_size = ImGui::CalcTextSize(label, NULL, true);
-
+	const ImVec2 labelSize = ImGui::CalcTextSize(label, NULL, true);
 	ImVec2 pos = window->DC.CursorPos;
-	if ((flags & ImGuiButtonFlags_AlignTextBaseLine) && style.FramePadding.y < window->DC.CurrLineTextBaseOffset) // Try to vertically align buttons that are smaller/have no padding so that text baseline matches (bit hacky, since it shouldn't be a flag)
-		pos.y += window->DC.CurrLineTextBaseOffset - style.FramePadding.y;
-	ImVec2 size = ImGui::CalcItemSize(size_arg, label_size.x + style.FramePadding.x * 2.0f, label_size.y + style.FramePadding.y * 2.0f);
 
-	const ImRect bb(pos, { pos.x + size.x, pos.y + size.y });
+	if ((flags & ImGuiButtonFlags_AlignTextBaseLine) && style.FramePadding.y < window->DC.CurrLineTextBaseOffset)
+		pos.y += window->DC.CurrLineTextBaseOffset - style.FramePadding.y;
+
+	const ImVec2 size = ImGui::CalcItemSize(size_arg, labelSize.x + style.FramePadding.x * 2.0f, labelSize.y + style.FramePadding.y * 2.0f);
+	const ImRect bb(pos, ImVec2(pos.x + size.x, pos.y + size.y));
+
 	ImGui::ItemSize(size, style.FramePadding.y);
 	if (!ImGui::ItemAdd(bb, id))
 		return false;
 
 	if (window->Flags & ImGuiItemFlags_ButtonRepeat)
 		flags |= ImGuiButtonFlags_Repeat;
-	bool hovered, held;
-	bool pressed = ImGui::ButtonBehavior(bb, id, &hovered, &held, flags);
 
-	ImU32 col;
-	// Render
+	bool hovered = false;
+	bool held = false;
+	const bool pressed = ImGui::ButtonBehavior(bb, id, &hovered, &held, flags);
+	const int alpha = Sakura::Menu::currentAlphaFade;
+
+	ImU32 background = ImColor(31, 31, 38, alpha);
 	if (hovered)
-		col = GetMenuColor();
-	else
-		col = ImColor(120, 120, 120, 120);
+		background = GetMenuColor(alpha / 255.0f);
+	if (held)
+		background = GetMenuColor(ImMax(0.65f, alpha / 255.0f));
 
-	window->DrawList->AddRectFilled(bb.Min, bb.Max, col, 4, 15);
-	if (held) window->DrawList->AddRectFilled(bb.Min, bb.Max, col, 4, 15);
-	ImGui::RenderTextClipped({ bb.Min.x + style.FramePadding.x, bb.Min.y + style.FramePadding.y }, { bb.Max.x - style.FramePadding.x,  bb.Max.y - style.FramePadding.y }, label, NULL, &label_size, style.ButtonTextAlign, &bb);
+	window->DrawList->AddRectFilled(bb.Min, bb.Max, background, 7.0f);
+	window->DrawList->AddRect(bb.Min, bb.Max, hovered ? GetMenuColor(alpha / 255.0f) : ImColor(57, 58, 66, alpha), 7.0f, 15, 1.0f);
+	ImGui::RenderTextClipped(
+		ImVec2(bb.Min.x + style.FramePadding.x, bb.Min.y + style.FramePadding.y),
+		ImVec2(bb.Max.x - style.FramePadding.x, bb.Max.y - style.FramePadding.y),
+		label,
+		NULL,
+		&labelSize,
+		style.ButtonTextAlign,
+		&bb
+	);
 
 	return pressed;
 }

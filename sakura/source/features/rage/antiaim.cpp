@@ -62,6 +62,9 @@ void AntiAim::Local(usercmd_s* cmd)
 	Vector origin;
 	for (playeraim_t Aim : PlayerAim)
 	{
+		if (Aim.backtrack)
+			continue;
+
 		if (Aim.index != Sakura::Aimbot::Rage::iTargetRage)
 			continue;
 

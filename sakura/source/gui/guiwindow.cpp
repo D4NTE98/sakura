@@ -27,7 +27,7 @@ void DrawFullScreenWindow()
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
 	ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
 	ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize, ImGuiCond_Always);
-	ImGui::Begin("fullscreen_sakura", reinterpret_cast<bool*>(true), ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs);
+	ImGui::Begin("fullscreen_sakura", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs);
 	{
 		DrawRouteLine();
 		Sakura::Esp::World::DrawSkeleton();
@@ -47,7 +47,7 @@ void DrawFullScreenWindow()
 			if (!script.HasCallback(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_RENDERING_BACKGROUND))
 				continue;
 
-			auto& callbacks = script.GetCallbacks(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_RENDERING_BACKGROUND);
+			auto callbacks = script.GetCallbacks(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_RENDERING_BACKGROUND);
 			for (const auto& callback : callbacks)
 			{
 				try

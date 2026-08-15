@@ -1,7 +1,7 @@
 #include "../../client.h"
 
 int Sakura::Lua::ScriptsCount = 0;
-int Sakura::Lua::currentScriptIndex = 0;
+int Sakura::Lua::currentScriptIndex = -1;
 
 std::vector<Sakura::Lua::LuaScripts> Sakura::Lua::scripts;
 
@@ -9,12 +9,28 @@ std::vector<HSAMPLE> Sakura::Lua::Sounds;
 
 Vector Sakura::Lua::Game::vLastConvertedVector(0, 0, 0);
 
+namespace
+{
+	bool LuaImGuiFrameReady()
+	{
+		return GImGui != nullptr && GImGui->WithinFrameScope;
+	}
+
+	bool LuaImGuiWindowReady()
+	{
+		return LuaImGuiFrameReady() && ImGui::GetCurrentWindow() != nullptr;
+	}
+}
+
 void Sakura::Lua::Hooks::RegisterCallBack(UINT type, luabridge::LuaRef f)
 {
-	if (type < 0 || type >= SAKURA_CALLBACK_ALL_CALLBACKS)
+	if (type >= SAKURA_CALLBACK_ALL_CALLBACKS)
 		return;
 
-	Sakura::Lua::scripts[currentScriptIndex].RegisterCallback(type, f);
+	if (currentScriptIndex < 0 || currentScriptIndex >= static_cast<int>(scripts.size()))
+		return;
+
+	scripts[currentScriptIndex].RegisterCallback(type, f);
 }
 
 void Sakura::Lua::Game::SendPacket(bool status)
@@ -24,15 +40,18 @@ void Sakura::Lua::Game::SendPacket(bool status)
 
 DWORD Sakura::Lua::Game::InitSound(const char* filename)
 {
-	char temp[256];
-	sprintf(temp, "%s%s", Sakura::CheatDir, filename);
+	if (!filename || !*filename)
+		return 0;
+
+	char temp[MAX_PATH * 2] = {};
+	snprintf(temp, sizeof(temp), "%s%s", Sakura::CheatDir, filename);
 
 	HSAMPLE sample = BASS_SampleLoad(false, temp, 0, 0, 60000, 0);
 
 	if (!sample)
-		Sakura::Log::File("Failed to load sound '%s' from lua. Error code: %i.", filename, BASS_ErrorGetCode());
-
-	Sounds.push_back(sample);
+		Sakura::Log::File("Failed to load sound '%s' from Lua. Error code: %i.", filename, BASS_ErrorGetCode());
+	else
+		Sounds.push_back(sample);
 
 	return sample;
 }
@@ -96,7 +115,7 @@ float Sakura::Lua::Game::GetClientTime()
 
 int Sakura::Lua::LocalPlayer::GetIndex()
 {
-	return pmove->player_index + 1;
+	return pmove ? pmove->player_index + 1 : 0;
 }
 
 int Sakura::Lua::LocalPlayer::GetTeam()
@@ -106,7 +125,7 @@ int Sakura::Lua::LocalPlayer::GetTeam()
 
 int Sakura::Lua::LocalPlayer::GetFlags()
 {
-	return pmove->flags;
+	return pmove ? pmove->flags : 0;
 }
 
 int Sakura::Lua::LocalPlayer::GetHealth()
@@ -116,27 +135,29 @@ int Sakura::Lua::LocalPlayer::GetHealth()
 
 bool Sakura::Lua::LocalPlayer::CheckFlag(const int flag)
 {
-	return (pmove->flags & flag);
+	return pmove && (pmove->flags & flag);
 }
 
 int Sakura::Lua::LocalPlayer::GetButtons()
 {
-	return pmove->cmd.buttons;
+	return pmove ? pmove->cmd.buttons : 0;
 }
 
 bool Sakura::Lua::LocalPlayer::CheckButton(const usercmd_s* cmd, const int button)
 {
-	return (cmd->buttons & button);
+	return cmd && (cmd->buttons & button);
 }
 
 void Sakura::Lua::LocalPlayer::PressButton(usercmd_s* cmd, const int button)
 {
-	cmd->buttons |= button;
+	if (cmd)
+		cmd->buttons |= button;
 }
 
 void Sakura::Lua::LocalPlayer::ReleaseButton(usercmd_s* cmd, const int button)
 {
-	cmd->buttons &= ~button;
+	if (cmd)
+		cmd->buttons &= ~button;
 }
 
 bool Sakura::Lua::LocalPlayer::IsAlive()
@@ -151,32 +172,35 @@ bool Sakura::Lua::LocalPlayer::IsScoped()
 
 void Sakura::Lua::LocalPlayer::FixMoveStart(usercmd_s* cmd)
 {
-	::FixMoveStart(cmd);
+	if (cmd)
+		::FixMoveStart(cmd);
 }
 
 void Sakura::Lua::LocalPlayer::FixMoveEnd(usercmd_s* cmd)
 {
-	::FixMoveEnd(cmd);
+	if (cmd)
+		::FixMoveEnd(cmd);
 }
 
 Vector Sakura::Lua::LocalPlayer::GetOrigin()
 {
-	return pmove->origin;
+	return pmove ? pmove->origin : Vector(0, 0, 0);
 }
 
 Vector Sakura::Lua::LocalPlayer::GetViewAngles()
 {
-	return pmove->angles;
+	return pmove ? pmove->angles : Vector(0, 0, 0);
 }
 
 void Sakura::Lua::LocalPlayer::SetViewAngles(Vector angles)
 {
-	pmove->angles = angles;
+	if (pmove)
+		pmove->angles = angles;
 }
 
 Vector Sakura::Lua::LocalPlayer::GetEyePosition()
 {
-	return pmove->origin + pmove->view_ofs;
+	return pmove ? pmove->origin + pmove->view_ofs : Vector(0, 0, 0);
 }
 
 bool Sakura::Lua::LocalPlayer::IsCurWeaponKnife()
@@ -239,35 +263,43 @@ screenfade_t Sakura::Lua::LocalPlayer::GetScreenFade()
 
 void Sakura::Lua::Game::ExecuteCommand(const char* command)
 {
-	char _command[64];
-	sprintf(_command, "%s", command);
-	g_Engine.pfnClientCmd(_command);
+	if (!command || !g_Engine.pfnClientCmd)
+		return;
+
+	char commandBuffer[256] = {};
+	snprintf(commandBuffer, sizeof(commandBuffer), "%s", command);
+	g_Engine.pfnClientCmd(commandBuffer);
 }
 
 std::string Sakura::Lua::Game::GetCommandString(const char* command)
 {
-	char _command[64];
-	sprintf(_command, "%s", command);
-	return g_Engine.pfnGetCvarString(_command);
+	if (!command || !g_Engine.pfnGetCvarString)
+		return {};
+
+	char commandBuffer[256] = {};
+	snprintf(commandBuffer, sizeof(commandBuffer), "%s", command);
+	const char* value = g_Engine.pfnGetCvarString(commandBuffer);
+	return value ? value : "";
 }
 
 float Sakura::Lua::Game::GetCommandFloat(const char* command)
 {
-	char _command[64];
-	sprintf(_command, "%s", command);
-	return g_Engine.pfnGetCvarFloat(_command);
+	if (!command || !g_Engine.pfnGetCvarFloat)
+		return 0.0f;
+
+	char commandBuffer[256] = {};
+	snprintf(commandBuffer, sizeof(commandBuffer), "%s", command);
+	return g_Engine.pfnGetCvarFloat(commandBuffer);
 }
 
 int Sakura::Lua::Game::GetCommandInt(const char* command)
 {
-	char _command[64];
-	sprintf(_command, "%s", command);
-	return static_cast<int>(g_Engine.pfnGetCvarFloat(_command));
+	return static_cast<int>(GetCommandFloat(command));
 }
 
 int Sakura::Lua::Player::GetTeam(const int index)
 {
-	if (index < 1 || index >= 32)
+	if (index < 1 || index > 32)
 		return 0;
 
 	return g_Player[index].iTeam;
@@ -275,16 +307,19 @@ int Sakura::Lua::Player::GetTeam(const int index)
 
 Vector Sakura::Lua::Player::GetOrigin(const int index)
 {
-	if (index < 1 || index >= 32)
+	if (index < 1 || index > 32)
 		return Vector(9999, 0, 0);
 
 	cl_entity_s* player = g_Engine.GetEntityByIndex(index);
+	if (!player)
+		return Vector(9999, 0, 0);
+
 	return player->origin;
 }
 
 int Sakura::Lua::Player::GetHealth(const int index)
 {
-	if (index < 1 || index >= 32)
+	if (index < 1 || index > 32)
 		return 0;
 
 	return g_Player[index].iHealth;
@@ -292,16 +327,22 @@ int Sakura::Lua::Player::GetHealth(const int index)
 
 std::string Sakura::Lua::Player::GetName(const int index)
 {
-	if (index < 1 || index >= 32)
+	if (index < 1 || index > 32)
+		return "Unknown";
+
+	if (!g_Studio.PlayerInfo)
 		return "Unknown";
 
 	player_info_s* player = g_Studio.PlayerInfo(index - 1);
+	if (!player)
+		return "Unknown";
+
 	return player->name;
 }
 
 std::string Sakura::Lua::Player::GetModelName(const int index)
 {
-	if (index < 1 || index >= 32)
+	if (index < 1 || index > 32)
 		return "Unknown";
 
 	return PlayerEsp[index].model;
@@ -309,10 +350,12 @@ std::string Sakura::Lua::Player::GetModelName(const int index)
 
 int Sakura::Lua::Player::GetDistance(const int index)
 {
-	if (index < 1 || index >= 32)
+	if (index < 1 || index > 32)
 		return 0;
 
 	cl_entity_s* player = g_Engine.GetEntityByIndex(index);
+	if (!player)
+		return 0;
 
 	Vector vDifference = player->origin - Sakura::Lua::LocalPlayer::GetEyePosition();
 	int iDistance = int(vDifference.Length() / 22.0f);
@@ -321,10 +364,12 @@ int Sakura::Lua::Player::GetDistance(const int index)
 
 float Sakura::Lua::Player::GetActualDistance(const int index)
 {
-	if (index < 1 || index >= 32)
+	if (index < 1 || index > 32)
 		return 0;
 
 	cl_entity_s* player = g_Engine.GetEntityByIndex(index);
+	if (!player)
+		return 0;
 
 	Vector vDifference = player->origin - Sakura::Lua::LocalPlayer::GetEyePosition();
 	return vDifference.Length();
@@ -332,16 +377,22 @@ float Sakura::Lua::Player::GetActualDistance(const int index)
 
 int Sakura::Lua::Player::GetPing(const int index)
 {
-	if (index < 1 || index >= 32)
+	if (index < 1 || index > 32)
+		return 0;
+
+	if (!g_Studio.PlayerInfo)
 		return 0;
 
 	player_info_s* player = g_Studio.PlayerInfo(index - 1);
+	if (!player)
+		return 0;
+
 	return player->ping;
 }
 
 bool Sakura::Lua::Player::IsAlive(const int index)
 {
-	if (index < 1 || index >= 32)
+	if (index < 1 || index > 32)
 		return 0;
 
 	return ::Sakura::Player::IsAlive(index);
@@ -349,116 +400,156 @@ bool Sakura::Lua::Player::IsAlive(const int index)
 
 void Sakura::Lua::Notify::Create(const char* szTitle, const int secondsDisplay = 3)
 {
-	Toast::Create(secondsDisplay, szTitle);
+	Toast::Create(secondsDisplay, "%s", szTitle ? szTitle : "");
 }
 
 void Sakura::Lua::ImGui::Window(const char* szTitle, ImGuiWindowFlags flags, luabridge::LuaRef lfFunction)
 {
-	if (::ImGui::Begin(szTitle, 0, flags))
+	if (!LuaImGuiFrameReady())
+	{
+		Sakura::Lua::Error("Lua ImGui.Window was called outside a render frame.");
+		return;
+	}
+
+	if (::ImGui::Begin(szTitle ? szTitle : "Lua Window", nullptr, flags))
 	{
 		try
 		{
 			lfFunction();
 		}
-		catch (luabridge::LuaException const& error)
+		catch (const luabridge::LuaException& error)
 		{
-			Sakura::Lua::Error("Error has occured in the lua \"Window Create\" script: %s", error.what());
+			Sakura::Lua::Error("Error in Lua ImGui.Window callback: %s", error.what());
 		}
 	}
+
 	::ImGui::End();
 }
 
 void Sakura::Lua::ImGui::Text(const char* szText)
 {
-	::ImGui::Text(szText);
+	if (!LuaImGuiWindowReady())
+		return;
+
+	::ImGui::TextUnformatted(szText ? szText : "");
 }
 
 bool Sakura::Lua::ImGui::Button(const char* szText)
 {
-	return ::ImGui::Button(szText);
+	if (!LuaImGuiWindowReady())
+		return false;
+
+	return ::ImGui::Button(szText ? szText : "");
 }
 
 bool Sakura::Lua::ImGui::Checkbox(const char* szText, bool bCurrentValue)
 {
-	bool bTheValue = bCurrentValue;
-	::ImGui::Checkbox(szText, &bTheValue);
-	return bTheValue;
+	if (!LuaImGuiWindowReady())
+		return bCurrentValue;
+
+	bool value = bCurrentValue;
+	::ImGui::Checkbox(szText ? szText : "", &value);
+	return value;
 }
 
 void Sakura::Lua::ImGui::SameLine()
 {
-	::ImGui::SameLine();
+	if (LuaImGuiWindowReady())
+		::ImGui::SameLine();
 }
 
 void Sakura::Lua::ImGui::Spacing()
 {
-	::ImGui::Spacing();
+	if (LuaImGuiWindowReady())
+		::ImGui::Spacing();
 }
 
 int Sakura::Lua::ImGui::Combo(const char* szText, int iCurrentValue, const char* szOptions)
 {
-	int iTheValue = iCurrentValue;
-	::ImGui::Combo(szText, &iTheValue, szOptions);
-	return iTheValue;
+	if (!LuaImGuiWindowReady())
+		return iCurrentValue;
+
+	int value = iCurrentValue;
+	::ImGui::Combo(szText ? szText : "", &value, szOptions ? szOptions : "");
+	return value;
 }
 
 int Sakura::Lua::ImGui::SliderInt(const char* szText, int iTheValue, int iMinimium, int iMaximum)
 {
-	::ImGui::SliderInt(szText, &iTheValue, iMinimium, iMaximum);
+	if (!LuaImGuiWindowReady())
+		return iTheValue;
+
+	::ImGui::SliderInt(szText ? szText : "", &iTheValue, iMinimium, iMaximum);
 	return iTheValue;
 }
 
 float Sakura::Lua::ImGui::KeyBind(const char* szText, int iKey)
 {
-	float iTheKey = iKey;
-	::Sakura::Menu::HudKeyBind(iTheKey, szText, {}, true);
-	return iTheKey;
+	if (!LuaImGuiWindowReady())
+		return static_cast<float>(iKey);
+
+	float key = static_cast<float>(iKey);
+	::Sakura::Menu::HudKeyBind(key, szText ? szText : "", {}, true);
+	return key;
 }
 
 ImColor Sakura::Lua::ImGui::Color(const char* szText, ImColor& color)
 {
-	::Sakura::Menu::Widgets::ColorEdit(szText, (float*)&color, ImGuiColorEditFlags_NoDragDrop | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_AlphaBar);
+	if (!LuaImGuiWindowReady())
+		return color;
+
+	::Sakura::Menu::Widgets::ColorEdit(szText ? szText : "", (float*)&color, ImGuiColorEditFlags_NoDragDrop | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_AlphaBar);
 	return color;
 }
 
 ImVec2 Sakura::Lua::ImGui::CalcTextSize(const char* label)
 {
-	return ::ImGui::CalcTextSize(label);
+	if (!LuaImGuiFrameReady())
+		return ImVec2(0.0f, 0.0f);
+
+	return ::ImGui::CalcTextSize(label ? label : "");
 }
 
 ImVec2 Sakura::Lua::ImGui::GetWindowSize()
 {
+	if (!LuaImGuiWindowReady())
+		return ImVec2(0.0f, 0.0f);
+
 	return ::ImGui::GetWindowSize();
 }
 
 void Sakura::Lua::ImGui::Drawings::AddRect(ImVec2& start, ImVec2& end, ImColor& color, float rounding, int flags, float thickness)
 {
-	::ImGui::GetWindowDrawList()->AddRect(start, end, color, rounding, flags, thickness);
+	if (LuaImGuiWindowReady())
+		::ImGui::GetWindowDrawList()->AddRect(start, end, color, rounding, flags, thickness);
 }
 
 void Sakura::Lua::ImGui::Drawings::AddLine(ImVec2& start, ImVec2& end, ImColor& color, float thickness)
 {
-	::ImGui::GetWindowDrawList()->AddLine(start, end, color, thickness);
+	if (LuaImGuiWindowReady())
+		::ImGui::GetWindowDrawList()->AddLine(start, end, color, thickness);
 }
 
 void Sakura::Lua::ImGui::Drawings::AddText(ImVec2& position, ImColor& color, const char* szText)
 {
-	::ImGui::GetWindowDrawList()->AddText(position, color, szText);
+	if (LuaImGuiWindowReady())
+		::ImGui::GetWindowDrawList()->AddText(position, color, szText ? szText : "");
 }
 
 void Sakura::Lua::ImGui::Drawings::AddRectFilled(ImVec2& start, ImVec2& end, ImColor& color, float rounding, int corners)
 {
-	::ImGui::GetWindowDrawList()->AddRectFilled(start, end, color, rounding, corners);
+	if (LuaImGuiWindowReady())
+		::ImGui::GetWindowDrawList()->AddRectFilled(start, end, color, rounding, corners);
 }
 
 void Sakura::Lua::Log::File(const char* text)
 {
-	::Sakura::Log::File(text);
+	::Sakura::Log::File("%s", text ? text : "");
 }
 
 void Sakura::Lua::Log::Console(const char* text)
 {
-	::Sakura::Log::Console(text);
+	::Sakura::Log::Console("%s", text ? text : "");
 }
 //s
 //void Sakura::Lua::Settings::SaveInt(const std::string name, int value)
@@ -986,19 +1077,18 @@ bool Sakura::Lua::Init(lua_State* L)
 
 void Sakura::Lua::Close()
 {
-	if (scripts.size() > 0)
+	currentScriptIndex = -1;
+	ScriptsCount = 0;
+
+	for (auto& script : scripts)
 	{
-		currentScriptIndex = 0;
-		ScriptsCount = 0;
+		script.RemoveAllCallbacks();
 
-		for (auto& script : scripts)
-		{
-			script.RemoveAllCallbacks();
+		if (script.GetState())
 			lua_close(script.GetState());
-		}
-
-		scripts.clear();
 	}
+
+	scripts.clear();
 }
 
 void Sakura::Lua::Reload()
@@ -1006,52 +1096,116 @@ void Sakura::Lua::Reload()
 	Close();
 
 	const std::string cd = Sakura::CheatDir;
-	const std::string scriptExtension = /*.lua*/XorStr<0x27, 5, 0x52E70E20>("\x09\x44\x5C\x4B" + 0x52E70E20).s;
+	const std::string scriptExtension = ".lua";
+	const std::filesystem::path scriptsDirectory = std::filesystem::path(cd) / "scripts";
 	std::string scriptsLoaded;
+	std::error_code ec;
 
-	for (const auto& p : std::filesystem::recursive_directory_iterator(cd + /*\\scripts\\*/XorStr<0xA3, 10, 0x25B9F64A>("\xFF\xD7\xC6\xD4\xCE\xD8\xDD\xD9\xF7" + 0x25B9F64A).s))
+	if (!std::filesystem::exists(scriptsDirectory, ec))
 	{
-		if (p.path().extension() != scriptExtension)
+		std::filesystem::create_directories(scriptsDirectory, ec);
+		if (ec)
+		{
+			Sakura::Lua::Error("Unable to create Lua scripts directory: %s", ec.message().c_str());
+			return;
+		}
+	}
+
+	std::filesystem::recursive_directory_iterator iterator(
+		scriptsDirectory,
+		std::filesystem::directory_options::skip_permission_denied,
+		ec
+	);
+	std::filesystem::recursive_directory_iterator end;
+
+	if (ec)
+	{
+		Sakura::Lua::Error("Unable to open Lua scripts directory: %s", ec.message().c_str());
+		return;
+	}
+
+	while (iterator != end)
+	{
+		const std::filesystem::path path = iterator->path();
+		iterator.increment(ec);
+
+		if (ec)
+		{
+			Sakura::Lua::Error("Lua directory scan error: %s", ec.message().c_str());
+			ec.clear();
+			continue;
+		}
+
+		if (path.extension().string() != scriptExtension)
 			continue;
 
 		lua_State* L = luaL_newstate();
 
 		if (!L)
 		{
-			Sakura::Lua::Error(/*Error creating Lua state for script: %s*/XorStr<0x99, 40, 0x12146F81>("\xDC\xE8\xE9\xF3\xEF\xBE\xFC\xD2\xC4\xC3\xD7\xCD\xCB\xC1\x87\xE4\xDC\xCB\x8B\xDF\xD9\xCF\xDB\xD5\x91\xD4\xDC\xC6\x95\xC5\xD4\xCA\xD0\xCA\xCF\x86\x9D\x9B\xCC" + 0x12146F81).s, p.path().filename().string().c_str());
+			Sakura::Lua::Error("Error creating Lua state for script: %s", path.filename().string().c_str());
 			continue;
 		}
 
 		luaL_openlibs(L);
 
-		Init(L);
-
-		if (luaL_loadfile(L, p.path().string().c_str()) != LUA_OK)
+		try
 		{
-			const char* error_msg = lua_tostring(L, -1);
-			Sakura::Lua::Error(/*Error loading Lua script: %s*/XorStr<0x98, 29, 0xAA02A755>("\xDD\xEB\xE8\xF4\xEE\xBD\xF2\xF0\xC1\xC5\xCB\xCD\xC3\x85\xEA\xD2\xC9\x89\xD9\xC8\xDE\xC4\xDE\xDB\x8A\x91\x97\xC0" + 0xAA02A755).s, error_msg);
+			if (!Init(L))
+			{
+				Sakura::Lua::Error("Error initializing Lua API for script: %s", path.filename().string().c_str());
+				lua_close(L);
+				continue;
+			}
+		}
+		catch (const std::exception& error)
+		{
+			Sakura::Lua::Error("Lua API initialization failed for %s: %s", path.filename().string().c_str(), error.what());
+			lua_close(L);
+			continue;
+		}
+		catch (...)
+		{
+			Sakura::Lua::Error("Lua API initialization failed for %s", path.filename().string().c_str());
 			lua_close(L);
 			continue;
 		}
 
-		LuaScripts script(L, p.path().filename().string());
-		scripts.push_back(script);
+		if (luaL_loadfile(L, path.string().c_str()) != LUA_OK)
+		{
+			const char* errorMessage = lua_tostring(L, -1);
+			Sakura::Lua::Error("Error loading Lua script %s: %s", path.filename().string().c_str(), errorMessage ? errorMessage : "unknown error");
+			lua_close(L);
+			continue;
+		}
+
+		Sakura::Log::File("Loading Lua script: %s", path.filename().string().c_str());
+
+		currentScriptIndex = static_cast<int>(scripts.size());
+		scripts.emplace_back(L, path.filename().string());
 
 		if (lua_pcall(L, 0, 0, 0) != LUA_OK)
 		{
-			const char* error_msg = lua_tostring(L, -1);
-			Sakura::Lua::Error(/*Error running Lua script: %s*/XorStr<0xE6, 29, 0x45A06148>("\xA3\x95\x9A\x86\x98\xCB\x9E\x98\x80\x81\x99\x9F\x95\xD3\xB8\x80\x97\xD7\x8B\x9A\x88\x92\x8C\x89\xC4\xDF\x25\x72" + 0x45A06148).s, error_msg);
+			const char* errorMessage = lua_tostring(L, -1);
+			const std::string errorText = errorMessage ? errorMessage : "unknown error";
+
+			scripts.back().RemoveAllCallbacks();
+			scripts.pop_back();
+			currentScriptIndex = -1;
+
+			Sakura::Lua::Error("Error running Lua script %s: %s", path.filename().string().c_str(), errorText.c_str());
 			lua_close(L);
 			continue;
 		}
 
-		currentScriptIndex++;
-		ScriptsCount++;
+		ScriptsCount = static_cast<int>(scripts.size());
+		currentScriptIndex = -1;
+		Sakura::Log::File("Loaded Lua script: %s", path.filename().string().c_str());
 
-		scriptsLoaded += /* - */XorStr<0xFA, 4, 0x8CF978D3>("\xDA\xD6\xDC" + 0x8CF978D3).s;
-		scriptsLoaded += p.path().filename().string();
-		scriptsLoaded += /*\n*/XorStr<0x14, 2, 0x6E034713>("\x1E" + 0x6E034713).s;
+		scriptsLoaded += " - ";
+		scriptsLoaded += path.filename().string();
+		scriptsLoaded += "\n";
 	}
 
-	Sakura::Log::File(/*%s (%d): \n%s*/XorStr<0x74, 13, 0xF313DFA4>("\x51\x06\x56\x5F\x5D\x1D\x53\x41\x5C\x77\x5B\x0C" + 0xF313DFA4).s, ScriptsCount > 1 ? /*Loaded scripts*/XorStr<0x4D, 15, 0x7D9CE133>("\x01\x21\x2E\x34\x34\x36\x73\x27\x36\x24\x3E\x28\x2D\x29" + 0x7D9CE133).s : /*Loaded script*/XorStr<0x27, 14, 0x7EC8B322>("\x6B\x47\x48\x4E\x4E\x48\x0D\x5D\x4C\x42\x58\x42\x47" + 0x7EC8B322).s, ScriptsCount, scriptsLoaded);
+	Sakura::Log::File("Loaded Lua scripts (%d):\n%s", ScriptsCount, scriptsLoaded.c_str());
 }

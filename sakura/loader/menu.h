@@ -2,15 +2,15 @@
 
 namespace Sakura
 {
-	void Init();
-	void InitStyles();
-	void Inject();
+    void Init();
+    void InitStyles();
+    void Inject();
 
-	namespace Menu
-	{
-		extern bool Active;
-		extern ImGuiWindowFlags WindowFlags;
+    namespace Menu
+    {
+        extern bool Active;
+        extern ImGuiWindowFlags WindowFlags;
 
-		void Draw();
-	};
-};
+        void Draw();
+    };
+}

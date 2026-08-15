@@ -77,7 +77,7 @@ int HUD_Key_Event(int down, int keynum, const char* pszCurrentBinding)
 		if (!script.HasCallback(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_CLIENT_BIND))
 			continue;
 
-		auto& callbacks = script.GetCallbacks(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_CLIENT_BIND);
+		auto callbacks = script.GetCallbacks(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_CLIENT_BIND);
 		for (const auto& callback : callbacks)
 		{
 			try
@@ -207,7 +207,7 @@ void CL_CreateMove(float frametime, usercmd_s* cmd, int active)
 		if (!script.HasCallback(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_CLIENT_MOVE))
 			continue;
 
-		auto& callbacks = script.GetCallbacks(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_CLIENT_MOVE);
+		auto callbacks = script.GetCallbacks(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_CLIENT_MOVE);
 		for (const auto& callback : callbacks)
 		{
 			try
@@ -224,6 +224,9 @@ void CL_CreateMove(float frametime, usercmd_s* cmd, int active)
 			}
 		}
 	}
+
+	if (Sakura::Player::Local::IsAlive() && CanAttack() && (cmd->buttons & (IN_ATTACK | IN_ATTACK2)))
+		Sakura::Esp::Player::RegisterLocalShot();
 }
 
 void HUD_PostRunCmd(local_state_s* from, local_state_s* to, usercmd_s* cmd, int runfuncs, double time, unsigned int random_seed)
@@ -428,6 +431,10 @@ int HUD_AddEntity(int type, cl_entity_s* ent, const char* modelname)
 			{
 				memcpy(&g_Player[ent->index].playerHistory, ent, sizeof(*ent));
 				g_Player[ent->index].playerHistory.origin = entTempOrigin;
+				g_Player[ent->index].playerHistory.curstate.origin = entTempOrigin;
+				g_Player[ent->index].playerHistory.prevstate.origin = entTempOrigin;
+				g_Player[ent->index].playerHistory.baseline.origin = entTempOrigin;
+				g_Player[ent->index].playerHistory.curstate.weaponmodel = -1;
 				g_Engine.CL_CreateVisibleEntity(ENTITY_TYPE_NORMAL, &g_Player[playerIndex].playerHistory);
 			}
 		}
@@ -442,7 +449,7 @@ int HUD_AddEntity(int type, cl_entity_s* ent, const char* modelname)
 		if (!script.HasCallback(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_ADDENTITY))
 			continue;
 
-		auto& callbacks = script.GetCallbacks(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_ADDENTITY);
+		auto callbacks = script.GetCallbacks(Sakura::Lua::SAKURA_CALLBACK_TYPE::SAKURA_CALLBACK_AT_ADDENTITY);
 		for (const auto& callback : callbacks)
 		{
 			try

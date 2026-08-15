@@ -231,6 +231,7 @@ public:
 	float visual_box_world_fill;
 
 	float visual_health;
+	float visual_damage;
 
 	float visual_visual_team;
 
@@ -349,6 +350,8 @@ public:
 
 	float visual_player_glow;
 	float visual_player_glow_thickness;
+	float visual_edge_chams;
+	float visual_edge_chams_thickness;
 	float visual_player_glow_color_ct[4];
 	float visual_player_glow_color_tt[4];
 

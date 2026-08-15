@@ -4,6 +4,7 @@ int		Sakura::Aimbot::Legit::iTargetLegit;
 int		Sakura::Aimbot::Legit::iHitboxLegit;
 bool	Sakura::Aimbot::Legit::LegitKeyStatus;
 Vector	Sakura::Aimbot::Legit::vAimOriginLegit;
+static bool g_LegitBacktrackTarget = false;
 
 void Sakura::Aimbot::Legit::SmoothAngles(QAngle MyViewAngles, QAngle AimAngles, QAngle& OutAngles, float Smoothing, bool bSpiral, float SpiralX, float SpiralY)
 {
@@ -33,37 +34,47 @@ void Sakura::Aimbot::Legit::SmoothAngles(QAngle MyViewAngles, QAngle AimAngles, 
 
 void Sakura::Aimbot::Legit::SelectHitbox(playeraim_t Aim, Vector vecFOV, float& flBestFOV, float flSpeedScaleFov, float& flSpeed)
 {
-	pmtrace_t tr;
+	if (!pmove || !g_Engine.pEventAPI)
+		return;
 
+	const int hitbox = static_cast<int>(cvar.legit[g_Local.weapon.m_iWeaponID].hitbox);
+	if (hitbox < 0 || hitbox >= static_cast<int>(Aim.PlayerAimHitbox.size()))
+		return;
+
+	pmtrace_t tr = {};
 	g_Engine.pEventAPI->EV_SetTraceHull(2);
 
 	Vector vEye = pmove->origin + pmove->view_ofs;
+	Vector target = Aim.PlayerAimHitbox[hitbox].Hitbox;
 
-	if (cvar.bypass_trace_legit)
-		g_Engine.pEventAPI->EV_PlayerTrace(vEye, Aim.PlayerAimHitbox[cvar.legit[g_Local.weapon.m_iWeaponID].hitbox].Hitbox, PM_WORLD_ONLY, -1, &tr);
+	if (Aim.backtrack || cvar.bypass_trace_legit)
+		g_Engine.pEventAPI->EV_PlayerTrace(vEye, target, PM_WORLD_ONLY, -1, &tr);
 	else
-		g_Engine.pEventAPI->EV_PlayerTrace(vEye, Aim.PlayerAimHitbox[cvar.legit[g_Local.weapon.m_iWeaponID].hitbox].Hitbox, PM_GLASS_IGNORE, -1, &tr);
+		g_Engine.pEventAPI->EV_PlayerTrace(vEye, target, PM_GLASS_IGNORE, -1, &tr);
 
-	int detect = g_Engine.pEventAPI->EV_IndexFromTrace(&tr);
+	const int detect = g_Engine.pEventAPI->EV_IndexFromTrace(&tr);
+	const bool visible = Aim.backtrack ? tr.fraction >= 0.999f : ((cvar.bypass_trace_legit && tr.fraction >= 0.999f && !detect) || (!cvar.bypass_trace_legit && detect == Aim.index));
 
-	if ((cvar.bypass_trace_legit && tr.fraction == 1 && !detect) || (!cvar.bypass_trace_legit && detect == Aim.index))
+	if (!visible)
+		return;
+
+	const float fov = vecFOV.AngleBetween(target - vEye);
+	if (fov <= flBestFOV)
 	{
-		Vector vEye = pmove->origin + pmove->view_ofs;
-		float fov = vecFOV.AngleBetween(Aim.PlayerAimHitbox[cvar.legit[g_Local.weapon.m_iWeaponID].hitbox].Hitbox - vEye);
-		if (fov <= flBestFOV)
-		{
-			flBestFOV = fov;
-			iTargetLegit = Aim.index;
-			iHitboxLegit = cvar.legit[g_Local.weapon.m_iWeaponID].hitbox;
-			vAimOriginLegit = Aim.PlayerAimHitbox[cvar.legit[g_Local.weapon.m_iWeaponID].hitbox].Hitbox;
-			if (flSpeedScaleFov > 0 && flSpeedScaleFov <= 100 && g_Local.vPunchangle.IsZero() && !isnan(Aim.PlayerAimHitbox[cvar.legit[g_Local.weapon.m_iWeaponID].hitbox].HitboxFOV))
-				flSpeed = flSpeed - (((Aim.PlayerAimHitbox[cvar.legit[g_Local.weapon.m_iWeaponID].hitbox].HitboxFOV * (flSpeed / Sakura::Aimbot::m_flCurrentFOV)) * flSpeedScaleFov) / 100);
-		}
+		flBestFOV = fov;
+		iTargetLegit = Aim.index;
+		iHitboxLegit = hitbox;
+		vAimOriginLegit = target;
+		g_LegitBacktrackTarget = Aim.backtrack;
+
+		if (flSpeedScaleFov > 0 && flSpeedScaleFov <= 100 && g_Local.vPunchangle.IsZero() && !isnan(Aim.PlayerAimHitbox[hitbox].HitboxFOV) && Sakura::Aimbot::m_flCurrentFOV > 0.0f)
+			flSpeed = flSpeed - (((Aim.PlayerAimHitbox[hitbox].HitboxFOV * (flSpeed / Sakura::Aimbot::m_flCurrentFOV)) * flSpeedScaleFov) / 100);
 	}
 }
 
 void Sakura::Aimbot::Legit::Aim(usercmd_s* cmd)
 {
+	g_LegitBacktrackTarget = false;
 	static DWORD dwBlockAttack = 0;
 
 	static float flSpeedSpiralX = 1.3;
@@ -334,7 +345,7 @@ void Sakura::Aimbot::Legit::Aim(usercmd_s* cmd)
 			}
 			for (playeraim_t Aim : PlayerAim)
 			{
-				if (Aim.index != iTargetLegit)
+				if (Aim.index != iTargetLegit || Aim.backtrack != g_LegitBacktrackTarget)
 					continue;
 
 				for (size_t i = 0; i < 12; ++i)
@@ -402,7 +413,7 @@ void Sakura::Aimbot::Legit::Draw()
 
 	for (playeraim_t Aim : PlayerAim)
 	{
-		if (Aim.index != iTargetLegit)
+		if (Aim.index != iTargetLegit || Aim.backtrack != g_LegitBacktrackTarget)
 			continue;
 
 		float CalcAnglesMin[2], CalcAnglesMax[2];

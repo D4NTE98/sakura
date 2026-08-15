@@ -4,7 +4,7 @@ class CIncomingSequence
 {
 public:
 	int seq;
-	double time;
+	DWORD time;
 };
 
 using SequenceList = std::deque<CIncomingSequence>;
@@ -19,7 +19,7 @@ public:
 	void Clear();
 
 private:
-	int m_iLastIncomingSequence;
+	int m_iLastIncomingSequence = 0;
 	SequenceList m_sequences;
 };
 

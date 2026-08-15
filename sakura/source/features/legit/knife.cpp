@@ -6,6 +6,9 @@ Vector	Sakura::Knifebot::vAimOriginKnife;
 
 void Sakura::Knifebot::SelectTarget(playeraim_t Aim, float& m_flBestDist)
 {
+	if (Aim.backtrack)
+		return;
+
 	pmtrace_t tr;
 
 	g_Engine.pEventAPI->EV_SetTraceHull(2);
@@ -125,6 +128,9 @@ void Sakura::Knifebot::Draw()
 
 	for (playeraim_t Aim : PlayerAim)
 	{
+		if (Aim.backtrack)
+			continue;
+
 		if (Aim.index != iTargetKnife)
 			continue;
 

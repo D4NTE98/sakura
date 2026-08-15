@@ -102,6 +102,40 @@ void Sakura::Chams::GlowEntity(cl_entity_s* ent, const float isChams, const floa
 	}
 }
 
+void Sakura::Chams::EdgeEntity(cl_entity_s* ent, const float thickness, const ImRGBA color)
+{
+	if (!ent)
+		return;
+
+	const int oldRenderFx = ent->curstate.renderfx;
+	const int oldRenderMode = ent->curstate.rendermode;
+	const int oldRenderAmount = ent->curstate.renderamt;
+	const byte oldRenderColorR = ent->curstate.rendercolor.r;
+	const byte oldRenderColorG = ent->curstate.rendercolor.g;
+	const byte oldRenderColorB = ent->curstate.rendercolor.b;
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
+	g_Studio.SetForceFaceFlags(STUDIO_NF_CHROME);
+
+	ent->curstate.renderfx = kRenderFxGlowShell;
+	ent->curstate.rendermode = 0;
+	ent->curstate.renderamt = static_cast<int>(thickness);
+	ent->curstate.rendercolor.r = static_cast<byte>(color.r * 255.0f);
+	ent->curstate.rendercolor.g = static_cast<byte>(color.g * 255.0f);
+	ent->curstate.rendercolor.b = static_cast<byte>(color.b * 255.0f);
+
+	oStudioRenderFinal();
+
+	g_Studio.SetForceFaceFlags(0);
+	ent->curstate.renderfx = oldRenderFx;
+	ent->curstate.rendermode = oldRenderMode;
+	ent->curstate.renderamt = oldRenderAmount;
+	ent->curstate.rendercolor.r = oldRenderColorR;
+	ent->curstate.rendercolor.g = oldRenderColorG;
+	ent->curstate.rendercolor.b = oldRenderColorB;
+}
+
 void Sakura::Chams::Studio()
 {
 	if (!Sakura::ScreenShot::IsVisuals())
@@ -153,7 +187,13 @@ void Sakura::Chams::Studio()
 
 	if (isPlayer && !(cvar.visual_idhook_only && IdHook::FirstKillPlayer[ent->index] == IDHOOK_PLAYER_OFF))
 	{
-		if (cvar.visual_player_glow)
+		if (cvar.visual_edge_chams)
+		{
+			const ImRGBA edgeColor = Sakura::Colors::GetCustomizedTeamColor(ent->index, cvar.visual_player_glow_color_tt, cvar.visual_player_glow_color_ct, cvar.rainbow_glow_player_tt, cvar.rainbow_glow_player_ct);
+			Sakura::Chams::EdgeEntity(ent, cvar.visual_edge_chams_thickness, edgeColor);
+		}
+
+		if (cvar.visual_player_glow && !cvar.visual_edge_chams)
 		{
 			const ImRGBA playerGlowColor = Sakura::Colors::GetCustomizedTeamColor(ent->index, cvar.visual_player_glow_color_tt, cvar.visual_player_glow_color_ct, cvar.rainbow_glow_player_tt, cvar.rainbow_glow_player_ct);
 			Sakura::Chams::GlowEntity(ent, cvar.chams_player, cvar.visual_player_glow_thickness, playerGlowColor);
